@@ -1,56 +1,54 @@
-from pickletools import uint8
 from typing import Union, List
 
-import scipy.io as sio
-import pandas as pd
 import numpy as np
-from mypyc.primitives.int_ops import int32_mod_op
+import pandas as pd
+import scipy.io as sio
 
 # column names for the dataset in the .mat files
 dataset_cols = [
-    'lat',
-    'lng',
-    'measurements_matrix',
-    'num_npcis_rf_op1',
-    'logical_rf_op1',
-    'num_npcis_toa_op1',
-    'logical_toa_op1',
-    'num_npcis_rf_op2',
-    'logical_rf_op2',
-    'num_npcis_toa_op2',
-    'logical_toa_op2',
-    'num_npcis_rf_op3',
-    'logical_rf_op3',
-    'num_npcis_toa_op3',
-    'logical_toa_op3',
-    'campaign_ids'
+    "lat",
+    "lng",
+    "measurements_matrix",
+    "num_npcis_rf_op1",
+    "logical_rf_op1",
+    "num_npcis_toa_op1",
+    "logical_toa_op1",
+    "num_npcis_rf_op2",
+    "logical_rf_op2",
+    "num_npcis_toa_op2",
+    "logical_toa_op2",
+    "num_npcis_rf_op3",
+    "logical_rf_op3",
+    "num_npcis_toa_op3",
+    "logical_toa_op3",
+    "campaign_ids",
 ]
 
 # specific datatypes for columns
 dataset_dtypes = {
-    'lat': 'float64',
-    'lng': 'float64',
-    'num_npcis_rf_op1': 'int8',
-    'num_npcis_toa_op1': 'int8',
-    'num_npcis_rf_op2': 'int8',
-    'num_npcis_toa_op2': 'int8',
-    'num_npcis_rf_op3': 'int8',
-    'num_npcis_toa_op3': 'int8'
+    "lat": "float64",
+    "lng": "float64",
+    "num_npcis_rf_op1": "int8",
+    "num_npcis_toa_op1": "int8",
+    "num_npcis_rf_op2": "int8",
+    "num_npcis_toa_op2": "int8",
+    "num_npcis_rf_op3": "int8",
+    "num_npcis_toa_op3": "int8",
 }
-
 
 # column names for the measurement matrix, with datatypes
 matrix_cols = {
-    'NPCI' : 'int8',
-    'eNodeBID': 'int32',
-    'RSSI': 'float64',
-    'NSINR': 'float64',
-    'NRSRP': 'float64',
-    'NRSRQ': 'float64',
-    'ToA': 'float64',
-    'operatorID': 'int8',
-    'campaignID':'int8',
+    "NPCI": "int8",
+    "eNodeBID": "int32",
+    "RSSI": "float64",
+    "NSINR": "float64",
+    "NRSRP": "float64",
+    "NRSRQ": "float64",
+    "ToA": "float64",
+    "operatorID": "int8",
+    "campaignID": "int8",
 }
+
 
 def flatten_nested_array(nested_array):
     """
@@ -60,7 +58,10 @@ def flatten_nested_array(nested_array):
         return nested_array.item()
     return nested_array
 
-def load_matlab_file_as_df(filename: str, dataset: str, usecols: Union[None, List[str]] = None) -> pd.DataFrame:
+
+def load_matlab_file_as_df(
+        filename: str, dataset: str, usecols: Union[None, List[str]] = None
+) -> pd.DataFrame:
     """
     Load the selected filename from a MATLAB file into a pandas DataFrame.
 
@@ -80,22 +81,24 @@ def load_matlab_file_as_df(filename: str, dataset: str, usecols: Union[None, Lis
 
     data_list = [
         {
-            'lat': flatten_nested_array(row[0]),
-            'lng': flatten_nested_array(row[1]),
-            'measurements_matrix': pd.DataFrame(row[2], columns=list(matrix_cols.keys())).astype(matrix_cols),
-            'num_npcis_rf_op1': flatten_nested_array(row[3]),
-            'logical_rf_op1': row[4].flatten(),
-            'num_npcis_toa_op1': flatten_nested_array(row[5]),
-            'logical_toa_op1': row[6].flatten(),
-            'num_npcis_rf_op2': flatten_nested_array(row[7]),
-            'logical_rf_op2': row[8].flatten(),
-            'num_npcis_toa_op2': flatten_nested_array(row[9]),
-            'logical_toa_op2': row[10].flatten(),
-            'num_npcis_rf_op3': flatten_nested_array(row[11]),
-            'logical_rf_op3': row[12].flatten(),
-            'num_npcis_toa_op3': flatten_nested_array(row[13]),
-            'logical_toa_op3': row[14].flatten(),
-            'campaign_ids': row[15].flatten()
+            "lat": flatten_nested_array(row[0]),
+            "lng": flatten_nested_array(row[1]),
+            "measurements_matrix": pd.DataFrame(
+                row[2], columns=list(matrix_cols.keys())
+            ).astype(matrix_cols),
+            "num_npcis_rf_op1": flatten_nested_array(row[3]),
+            "logical_rf_op1": row[4].flatten(),
+            "num_npcis_toa_op1": flatten_nested_array(row[5]),
+            "logical_toa_op1": row[6].flatten(),
+            "num_npcis_rf_op2": flatten_nested_array(row[7]),
+            "logical_rf_op2": row[8].flatten(),
+            "num_npcis_toa_op2": flatten_nested_array(row[9]),
+            "logical_toa_op2": row[10].flatten(),
+            "num_npcis_rf_op3": flatten_nested_array(row[11]),
+            "logical_rf_op3": row[12].flatten(),
+            "num_npcis_toa_op3": flatten_nested_array(row[13]),
+            "logical_toa_op3": row[14].flatten(),
+            "campaign_ids": row[15].flatten(),
         }
         for row in data
     ]
