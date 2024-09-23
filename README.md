@@ -1,5 +1,11 @@
 # 5G Localization
 
+This is the main repository for my code implementation part of my masters thesis on enhanced localization in 5G networks
+using machine learning.
+This repository will be the foundation for experimenting with different positioning techniques and ML models. The data
+im using is a dataset
+collected in Oslo and Rome on both 5G and NB-IoT networks.
+
 ## Getting started
 
 To set up the project, run:
