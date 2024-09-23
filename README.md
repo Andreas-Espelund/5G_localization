@@ -1,6 +1,5 @@
 # 5G Localization
 
-
 ## Getting started
 
 To set up the project, run:
@@ -15,38 +14,60 @@ Run the Jupyter notebook:
 jupyter notebook
 ``` 
 
+It can also be run using PyCharm or Data Spell IDEA by pressing the play button on the notebook.
 
 ## About the project
-
 
 ## Project code
 
 ### Notebook
+
 The code is run from a jupyter notebook found in `Main.ipynb`.
 Here can you also find notes and in-line documentation.
 
 ### Scripts
+
 Other code is found in the `scripts/` directory for things like data loading and formatting.
-The data_loader is the module responsible for loading the matlab files and returning them 
+The data_loader is the module responsible for loading the matlab files and returning them
 as pandas dataframes.
+
+#### `weighted_coverage.py`
+
+This is the main logic and implementation of the wKNN algorithm.
+
+#### `data_loader.py`
+
+The matlab data files are loaded and transformed into pandas dataframes
+that are used throughout the project.
+
+#### `utils.py`
+
+Contains some utility functions to assist the main algorithm, e.g. haversine distance.
+
+#### `plotting.py`
+
+Methods to plot graphs.
 
 ## Dataset
 
 ### Pre-processed Matlab files
+
 For now im using the NB-IoT dataset to get started, but eventually i will switch to the 5G dataset.
 
 Im using the `Campaign_data_NBIoT_1_2_3_4_5_6_interpolated_smoothed.mat` file which contains three datasets.
-This file is generated from the matlab code found [Here](https://github.com/lucadn/positioning-5G/tree/main), in the 
-NB-IoT part of the code. This reads the raw `.xlsx` files, interpolates and cleans them. Then the data files are generated
+This file is generated from the matlab code found [Here](https://github.com/lucadn/positioning-5G/tree/main), in the
+NB-IoT part of the code. This reads the raw `.xlsx` files, interpolates and cleans them. Then the data files are
+generated
 as the `.mat` files found in the `data/` directory in this project.
 
 **The file contains three datasets:**
+
 - dataSet
 - dataSet_interp
 - dataSet_smooth
 
-
 ### Dataset content
+
 | Column | Label               | Content                                                                                                                         |
 |--------|---------------------|---------------------------------------------------------------------------------------------------------------------------------|
 | 1      | lat                 | Latitude                                                                                                                        |
@@ -70,4 +91,6 @@ as the `.mat` files found in the `data/` directory in this project.
 
 ### Dataset
 
-Luca De Nardis, Giuseppe Caso, Özgü Alay, Marco Neri, Anna Brunstrom, & Maria-Gabriella Di Benedetto. (2023). Outdoor NB-IoT and 5G coverage and channel information data in urban environments [Data set]. Zenodo. https://doi.org/10.5281/zenodo.8161173
+Luca De Nardis, Giuseppe Caso, Özgü Alay, Marco Neri, Anna Brunstrom, & Maria-Gabriella Di Benedetto. (2023). Outdoor
+NB-IoT and 5G coverage and channel information data in urban environments [Data set].
+Zenodo. https://doi.org/10.5281/zenodo.8161173
