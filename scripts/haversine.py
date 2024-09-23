@@ -1,13 +1,13 @@
 import numpy as np
 
 
-def haversine_distance(lat1, lon1, lat2, lon2):
+def haversine_distance(lat1, lon1, lat2, lon2) -> tuple[float, float, float]:
     """
-    :param lat1:
-    :param lon1:
-    :param lat2:
-    :param lon2:
-    :return:
+    :param lat1: point a latitude
+    :param lon1: point a longitude
+    :param lat2: point b latitude
+    :param lon2: point b longitude
+    :return: distance in km, nmi and mi
     """
     # Convert latitude and longitude from degrees to radians
     lat1, lon1, lat2, lon2 = map(np.radians, [lat1, lon1, lat2, lon2])
@@ -20,4 +20,7 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 
     # Radius of Earth in kilometers (mean radius)
     r = 6371.0
-    return c * r
+    km = c * r
+    nmi = km * 0.539956803  # nautical miles
+    mi = km * 0.621371192  # miles
+    return km

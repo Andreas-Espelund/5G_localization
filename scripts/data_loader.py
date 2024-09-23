@@ -60,7 +60,7 @@ def flatten_nested_array(nested_array):
 
 
 def load_matlab_file_as_df(
-        filename: str, dataset: str, usecols: Union[None, List[str]] = None
+    filename: str, dataset: str, usecols: Union[None, List[str]] = None
 ) -> pd.DataFrame:
     """
     Load the selected filename from a MATLAB file into a pandas DataFrame.
