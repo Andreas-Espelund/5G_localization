@@ -11,6 +11,10 @@ collected in Oslo and Rome on both 5G and NB-IoT networks.
 To set up the project, run:
 
 ```bash
+# Allow execution privleges
+chmod +x setup.sh
+
+# Run the setup script
 ./setup.sh
 ```
 
@@ -74,24 +78,25 @@ as the `.mat` files found in the `data/` directory in this project.
 
 ### Dataset content
 
-| Column | Label               | Content                                                                                                                         |
-|--------|---------------------|---------------------------------------------------------------------------------------------------------------------------------|
-| 1      | lat                 | Latitude                                                                                                                        |
-| 2      | lng                 | Longitude                                                                                                                       |
-| 3      | measurements_matrix | A matrix that contains for each row the following info: NPCI; eNodeB ID; RSSI; NSINR; NRSRP; NRSRQ; ToA; operatorID; campaignID |
-| 4      | num_npcis_rf_op1    | A scalar that reports the number of NPCIs with RF data for operator 1                                                           |
-| 5      | logical_rf_op1      | A logical column vector that has 1s at positions of the matrix containing a NPCI with RF data for operator 1                    |
-| 6      | num_npcis_toa_op1   | A scalar that reports the number of NPCIs with ToA data for operator 1                                                          |
-| 7      | logical_toa_op1     | A logical column vector that has 1s at positions of the matrix containing a NPCI with ToA data for operator 1                   |
-| 8      | num_npcis_rf_op2    | A scalar that reports the number of NPCIs with RF data for operator 2                                                           |
-| 9      | logical_rf_op2      | A logical column vector that has 1s at positions of the matrix containing a NPCI with RF data for operator 2                    |
-| 10     | num_npcis_toa_op2   | A scalar that reports the number of NPCIs with ToA data for operator 2                                                          |
-| 11     | logical_toa_op2     | A logical column vector that has 1s at positions of the matrix containing a NPCI with ToA data for operator 2                   |
-| 12     | num_npcis_rf_op3    | A scalar that reports the number of NPCIs with RF data for operator 3                                                           |
-| 13     | logical_rf_op3      | A logical column vector that has 1s at positions of the matrix containing a NPCI with RF data for operator 3                    |
-| 14     | num_npcis_toa_op3   | A scalar that reports the number of NPCIs with ToA data for operator 3                                                          |
-| 15     | logical_toa_op3     | A logical column vector that has 1s at positions of the matrix containing a NPCI with ToA data for operator 3                   |
-| 16     | campaign_ids        | A column vector that contains the list of campaign IDs that contributed to the data in the location                             |
+| Column   | Label                 | Content                                                                                                                           |
+|----------|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------|
+| 1        | lat                   | Latitude                                                                                                                          |
+| 2        | lng                   | Longitude                                                                                                                         |
+| 3        | measurements_matrix   | A matrix that contains for each row the following info: NPCI; eNodeB ID; RSSI; NSINR; NRSRP; NRSRQ; ToA; operatorID; campaignID   |
+| 4        | num_npcis_rf_op1      | A scalar that reports the number of NPCIs with RF data for operator 1                                                             |
+| 5        | logical_rf_op1        | A logical column vector that has 1s at positions of the matrix containing a NPCI with RF data for operator 1                      |
+| 6        | num_npcis_toa_op1     | A scalar that reports the number of NPCIs with ToA data for operator 1                                                            |
+| 7        | logical_toa_op1       | A logical column vector that has 1s at positions of the matrix containing a NPCI with ToA data for operator 1                     |
+| 8        | num_npcis_rf_op2      | A scalar that reports the number of NPCIs with RF data for operator 2                                                             |
+| 9        | logical_rf_op2        | A logical column vector that has 1s at positions of the matrix containing a NPCI with RF data for operator 2                      |
+| 10       | num_npcis_toa_op2     | A scalar that reports the number of NPCIs with ToA data for operator 2                                                            |
+| 11       | logical_toa_op2       | A logical column vector that has 1s at positions of the matrix containing a NPCI with ToA data for operator 2                     |
+| 12       | num_npcis_rf_op3      | A scalar that reports the number of NPCIs with RF data for operator 3                                                             |
+| 13       | logical_rf_op3        | A logical column vector that has 1s at positions of the matrix containing a NPCI with RF data for operator 3                      |
+| 14       | num_npcis_toa_op3     | A scalar that reports the number of NPCIs with ToA data for operator 3                                                            |
+| 15       | logical_toa_op3       | A logical column vector that has 1s at positions of the matrix containing a NPCI with ToA data for operator 3                     |
+| 16       | campaign_ids          | A column vector that contains the list of campaign IDs that contributed to the data in the location                               |
+| -------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 
 ## References
 

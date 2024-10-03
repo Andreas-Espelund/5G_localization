@@ -27,23 +27,40 @@ def geo_plot_points(df: pd.DataFrame):
     m.save("map.html")
 
 
-def make_boxplot(df: pd.DataFrame):
+def make_boxplot(df: pd.DataFrame, title: str, x_label: str, y_label: str):
     """
     Creates a boxplot of the given dataframe.
+
     :param df:
+    :param title:
+    :param x_label:
+    :param y_label:
     """
     data_values = [df[col] for col in df.columns]
 
     plt.figure(figsize=(20, 12))
     median_props = dict(color="black", linewidth="3")
     plot = plt.boxplot(
-        data_values, patch_artist=True, labels=df.columns, medianprops=median_props
+        data_values,
+        patch_artist=True,
+        labels=df.columns,
+        medianprops=median_props
     )
+    hatch_pattern = 'O'
+    hatch_color = 'forestgreen'
 
-    plt.title("MSE in Weighted Coverage strategy")
+    for patch in plot['boxes']:
+        patch.set(hatch=hatch_pattern, edgecolor=hatch_color)
+        patch.set_facecolor('none')
+        patch.set_edgecolor(hatch_color)
+
+    # formatting the plot
+    plt.title(title)
     plt.grid(axis="y")
-    plt.xlabel("K value", fontsize=18)
-    plt.ylabel("MSE (meters)", fontsize=18)
+    plt.xlabel(x_label, fontsize=18)
+    plt.ylabel(y_label, fontsize=18)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
 
     # Show the plot
     plt.show()

@@ -48,18 +48,36 @@ def dataset_reference_test_split(
     return df_tp, df_rp
 
 
-def get_unique_npcis(dataset: pd.DataFrame) -> np.array:
-    """
-    Returns the unique Npcis found in the dataset
-    :param dataset: Original dataset
-    :return:
-    """
+def filter_unique_npcis_by_operator(df, operator_choice):
+    # Extract NPCIs and operator IDs from the measurements
+    npcis_with_operators = np.concatenate(
+        df['measurements_matrix'].apply(lambda x: x[['NPCI', 'operatorID']].values).values)
 
-    npcis = np.concatenate(
-        dataset["measurements_matrix"].apply(lambda x: x["NPCI"].values).values
-    )
+    # Filter NPCIs based on the operator choice
+    filtered_npcis = [npc for npc, op in npcis_with_operators if op in operator_choice]
+    unique_npcis_filtered = np.unique(filtered_npcis)
 
-    return np.unique(npcis)
+    return unique_npcis_filtered
+
+
+def extract_unique_npcis(df, operator_choice) -> np.array:
+    npcis = []
+    for measurements in df['measurements_matrix']:
+        for _, row in measurements.iterrows():
+            npc = row['NPCI'].astype(int)
+            enodeb_id = row['eNodeBID'].astype(int)
+            operator_id = row['operatorID'].astype(int)
+            # Append as a tuple
+            npcis.append((npc, enodeb_id, operator_id))
+
+    # Convert to a DataFrame and drop duplicates
+    npcis_df = pd.DataFrame(npcis, columns=['NPCI', 'eNodeBID', 'operatorID'])
+    unique_npcis = npcis_df.drop_duplicates()
+
+    # Filter by operator choice
+    filtered_npcis = unique_npcis[unique_npcis['operatorID'].isin(operator_choice)]
+
+    return filtered_npcis.to_numpy()
 
 
 def compute_metrics(results: pd.DataFrame) -> pd.DataFrame:
@@ -115,4 +133,4 @@ def haversine_distance(lat1, lon1, lat2, lon2) -> tuple[float, float, float]:
     m = km * 1000
     nmi = km * 0.539956803  # nautical miles
     mi = km * 0.621371192  # miles
-    return m
+    return km
