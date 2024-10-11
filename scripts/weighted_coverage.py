@@ -1,5 +1,3 @@
-import time
-
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
@@ -28,7 +26,9 @@ def create_point_matrix(df: pd.DataFrame, unique_npcis: np.array, rf_param: RF_P
     miss_ref_value = get_miss_ref_value(rf_param)
 
     point_matrix = np.full(
-        shape=[num_points, num_unique_npcis], fill_value=miss_ref_value
+        shape=[num_points, num_unique_npcis],
+        fill_value=miss_ref_value,
+        dtype=np.float64
     )
 
     idx_matrix = np.zeros(shape=[num_points, num_unique_npcis])
@@ -154,7 +154,8 @@ def wknn(
     return TP_est_location, k_avg_error
 
 
-def run_weighted_coverage(dataset: pd.DataFrame, rf_param: RF_PARAM, k_max: int, unique_npcis: np.array) -> (
+def run_weighted_coverage(dataset: pd.DataFrame, dataset_smoothed: pd.DataFrame, rf_param: RF_PARAM, k_max: int,
+                          unique_npcis: np.array, random_seed: int) -> (
         float, float):
     """
     'Main' entry point.
@@ -162,53 +163,33 @@ def run_weighted_coverage(dataset: pd.DataFrame, rf_param: RF_PARAM, k_max: int,
     Creates the point matrecies and calculates the weights.
     Runs wKNN to estimate position and calculate error.
     :param unique_npcis:
-    :param operator_choice:
     :param dataset: Original dataset
     :param rf_param: What rf param to use
     :param k_max: Max number of neighbors for wKNN
-    :param random_seed: Random seed for shuffling the dataframe
+
     :return: Estimated locations and average error for each k value
     """
 
-    # Start timing for copying dataset
-    # start_time = time.time()
     # Copy dataset to avoid overwriting
     dataset = dataset.copy()
-    # print(f"Copying dataset: {time.time() - start_time:.6f} seconds")
 
-    # Start timing for shuffling dataset
-    # start_time = time.time()
     # Shuffle the dataframe
-    dataset = dataset.sample(frac=1, random_state=int(time.time())).reset_index(drop=True)
-    # print(f"Shuffling dataset: {time.time() - start_time:.6f} seconds")
+    dataset = dataset.sample(frac=1, random_state=random_seed).reset_index(drop=True)
+    dataset_smoothed = dataset_smoothed.sample(frac=1, random_state=random_seed).reset_index(drop=True)
 
-    # Start timing for splitting dataset
-    # start_time = time.time()
     # Randomly assign points as test points (2) or reference points (1)
     test_mask = np.random.rand(len(dataset)) <= 0.3
-    df_tp = dataset[test_mask]
-    df_rp = dataset[~test_mask]
-    # print(f"Splitting dataset: {time.time() - start_time:.6f} seconds")
+    df_tp = dataset[test_mask]  # test points are selected from the regular or interpolated data
+    df_rp = dataset_smoothed[~test_mask]  # reference points are selected from the smoothed data
 
-    # Start timing for creating reference point matrix
-    # start_time = time.time()
     # Create matrices for test and reference points
     m_rfp, idx_rfp = create_point_matrix(df_rp, unique_npcis, rf_param)
-    # print(f"Creating reference point matrix: {time.time() - start_time:.6f} seconds")
-
-    # Start timing for creating test point matrix
-    # start_time = time.time()
     m_tp, idx_tp = create_point_matrix(df_tp, unique_npcis, rf_param)
-    # print(f"Creating test point matrix: {time.time() - start_time:.6f} seconds")
 
-    # Start timing for computing weights
-    # start_time = time.time()
+    # Compute weights for wKNN
     W, idx_sort = compute_weights(m_rfp, idx_rfp, m_tp, idx_tp)
-    # print(f"Computing weights: {time.time() - start_time:.6f} seconds")
 
-    # Start timing for wKNN computation
-    # start_time = time.time()
+    # Do wKNN
     tp_est_location, k_avg_error = wknn(df_tp, df_rp, idx_sort, W, k_max)
-    # print(f"wKNN computation: {time.time() - start_time:.6f} seconds")
 
     return tp_est_location, k_avg_error
