@@ -145,7 +145,7 @@ def train_kmeans(df_rp: pd.DataFrame, n_clusters: int, random_state: int):
     :param random_state: Random state for reproducibility
     :return: Trained k-means model and cluster labels for the reference points
     """
-    coords = df_rp[['lat', 'lng']]
+    coords = df_rp[['lat', 'lng']].values
     kmeans = KMeans(n_clusters=n_clusters, random_state=random_state)
     cluster_labels = kmeans.fit_predict(coords)
     return kmeans, cluster_labels
