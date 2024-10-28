@@ -1,6 +1,7 @@
 import folium
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.ticker import ScalarFormatter
 
 
 def geo_plot_points(df: pd.DataFrame):
@@ -64,3 +65,72 @@ def make_boxplot(df: pd.DataFrame, title: str, x_label: str, y_label: str):
 
     # Show the plot
     plt.show()
+
+
+def make_lat_lng_scatterplot(df: pd.DataFrame, col: str, col_label: str, title: str, plot_individual: bool = False):
+    campaign_color_mapping = {
+        0: 'orange',
+        1: 'red',
+        2: 'green',
+        3: 'blue',
+        4: 'yellow',
+        5: 'purple',
+        6: 'teal'
+    }
+
+    cluster_color_mapping = {
+        0: 'orange',
+        1: 'red',
+        2: 'green',
+        3: 'blue',
+        4: 'yellow',
+        5: 'purple',
+        6: 'teal',
+        7: 'pink',
+        8: 'brown',
+        9: 'gray',
+        10: 'cyan',
+        11: 'magenta',
+        12: 'lime',
+        13: 'navy',
+        14: 'maroon',
+        15: 'olive',
+        16: 'silver',
+        17: 'gold',
+        18: 'lavender',
+        19: 'wheat',
+        20: 'turquoise'
+    }
+
+    if col == 'campaign_id':
+        map = campaign_color_mapping
+
+    if col == 'prediction':
+        map = cluster_color_mapping
+
+    if map is None:
+        raise ValueError('Invalid map')
+
+    plt.figure(figsize=(8, 6))
+    for name, df in df.groupby(col):
+        plt.scatter(df['lat'], df['lng'], c=map[name], label=f"{col_label} {name}", alpha=0.2)
+
+    plt.xlabel('Latitude')
+    plt.ylabel('Longitude')
+    plt.title(title)
+    plt.legend(title=col_label)
+    plt.show()
+
+    if not plot_individual: return
+
+    for name, df in df.groupby(col):
+        plt.figure(figsize=(5, 3))
+        plt.scatter(df['lat'], df['lng'], c=map[name], label=f"{col_label} {name}", alpha=1)
+        plt.gca().xaxis.set_major_formatter(ScalarFormatter(useOffset=False))
+        plt.gca().yaxis.set_major_formatter(ScalarFormatter(useOffset=False))
+
+        plt.title(f"{title} for {col_label} {name}")
+        plt.xlabel('Latitude')
+        plt.ylabel('Longitude')
+        plt.legend(title=col_label, bbox_to_anchor=(-0.1, -0.1))
+        plt.show()

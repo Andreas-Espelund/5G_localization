@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
@@ -5,7 +7,7 @@ from scipy.spatial.distance import cdist
 from scripts.utils import (
     RF_PARAM,
     get_miss_ref_value,
-    haversine_distance
+    haversine_distance, train_kmeans
 )
 
 
@@ -93,7 +95,6 @@ def wknn(
         k_max: int,
 ) -> (np.array, dict):
     """
-
     :param df_tp: Dataframe of reference points
     :param df_rp: Dataframe of test points
     :param idx_sort: sorted index matrix by weights
@@ -117,12 +118,10 @@ def wknn(
         RFP_selected_idx = idx_sort[:, :this_k]
 
         # Extract coordinates of the selected reference points
-        lat_k_RFP_matrix = df_rp.iloc[RFP_selected_idx.flatten()]["lat"].values.reshape(
-            RFP_selected_idx.shape
-        )
-        long_k_RFP_matrix = df_rp.iloc[RFP_selected_idx.flatten()][
-            "lng"
-        ].values.reshape(RFP_selected_idx.shape)
+        lat_k_RFP_matrix = (df_rp.iloc[RFP_selected_idx.flatten()]["lat"]
+                            .values.reshape(RFP_selected_idx.shape))
+        long_k_RFP_matrix = (df_rp.iloc[RFP_selected_idx.flatten()]["lng"]
+                             .values.reshape(RFP_selected_idx.shape))
 
         # Compute weighted sums of coordinates
         sum_lat = np.sum(lat_k_RFP_matrix * W[:, :this_k], axis=1)
@@ -132,10 +131,6 @@ def wknn(
         sum_weights = np.sum(W[:, :this_k], axis=1)
         lat_k_TP = np.where(sum_weights != 0, sum_lat / sum_weights, np.nan)
         long_k_TP = np.where(sum_weights != 0, sum_long / sum_weights, np.nan)
-
-        # Compute estimated coordinates of test points
-        # lat_k_TP = sum_lat / np.sum(W[:, :this_k], axis=1)
-        # long_k_TP = sum_long / np.sum(W[:, :this_k], axis=1)
 
         # Compute errors using Haversine formula
         km_pow = haversine_distance(
@@ -154,9 +149,8 @@ def wknn(
     return TP_est_location, k_avg_error
 
 
-def run_weighted_coverage(dataset: pd.DataFrame, dataset_smoothed: pd.DataFrame, rf_param: RF_PARAM, k_max: int,
-                          unique_npcis: np.array, random_seed: int) -> (
-        float, float):
+def run_weighted_coverage(dataset: pd.DataFrame, rf_param: RF_PARAM, k_max: int,
+                          unique_npcis: np.array, random_seed: int, n_clusters: int) -> (float, float):
     """
     'Main' entry point.
     Splits the dataset into test and reference points.
@@ -170,26 +164,40 @@ def run_weighted_coverage(dataset: pd.DataFrame, dataset_smoothed: pd.DataFrame,
     :return: Estimated locations and average error for each k value
     """
 
-    # Copy dataset to avoid overwriting
-    dataset = dataset.copy()
-
     # Shuffle the dataframe
-    dataset = dataset.sample(frac=1, random_state=random_seed).reset_index(drop=True)
-    dataset_smoothed = dataset_smoothed.sample(frac=1, random_state=random_seed).reset_index(drop=True)
+    df = dataset.sample(frac=1, random_state=random_seed).reset_index(drop=True)
 
     # Randomly assign points as test points (2) or reference points (1)
-    test_mask = np.random.rand(len(dataset)) <= 0.3
-    df_tp = dataset[test_mask]  # test points are selected from the regular or interpolated data
-    df_rp = dataset_smoothed[~test_mask]  # reference points are selected from the smoothed data
+    test_mask = np.random.rand(len(df)) <= 0.3
+    df_tp = df[test_mask].copy()
+    df_rp = df[~test_mask].copy()
+
+    # cluster the reference points
+    kMeans, cluster_labels = train_kmeans(df_rp, n_clusters, 42)
+    df_rp['cluster'] = cluster_labels
+
+    # predict the cluster of the test points
+    df_tp['cluster'] = kMeans.predict(df_tp[['lat', 'lng']])
+
+    # select a random cluster
+    np.random.seed(random_seed)
+    cluster = random.choice(df_tp['cluster'].unique().tolist())
+
+    # Use testpoints and rps form that cluster
+    df_rp = df_rp[df_rp['cluster'] == cluster]
+    df_tp = df_tp[df_tp['cluster'] == cluster]
+
+    # print(f"Testing {len(df_tp)} points in cluster {cluster}")
 
     # Create matrices for test and reference points
     m_rfp, idx_rfp = create_point_matrix(df_rp, unique_npcis, rf_param)
     m_tp, idx_tp = create_point_matrix(df_tp, unique_npcis, rf_param)
 
-    # Compute weights for wKNN
+    # Compute weights for WkNN
     W, idx_sort = compute_weights(m_rfp, idx_rfp, m_tp, idx_tp)
 
-    # Do wKNN
-    tp_est_location, k_avg_error = wknn(df_tp, df_rp, idx_sort, W, k_max)
+    # Do WkNN
+    TP_est_location, k_avg_error = wknn(df_tp, df_rp, idx_sort, W, k_max)
 
-    return tp_est_location, k_avg_error
+    # return estimated locations and average error for each k-value
+    return TP_est_location, k_avg_error

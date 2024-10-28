@@ -21,7 +21,7 @@ dataset_cols = [
     "logical_rf_op3",
     "num_npcis_toa_op3",
     "logical_toa_op3",
-    "campaign_ids",
+    "campaign_id",
 ]
 
 # specific datatypes for columns
@@ -98,7 +98,7 @@ def load_matlab_file_as_df(
             "logical_rf_op3": row[12].flatten(),
             "num_npcis_toa_op3": flatten_nested_array(row[13]),
             "logical_toa_op3": row[14].flatten(),
-            "campaign_ids": row[15].flatten(),
+            "campaign_id": row[15].flatten()[0],
         }
         for row in data
     ]

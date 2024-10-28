@@ -2,6 +2,7 @@ from enum import Enum
 
 import numpy as np
 import pandas as pd
+from sklearn.cluster import KMeans
 
 
 class RF_PARAM(Enum):
@@ -134,3 +135,17 @@ def haversine_distance(lat1, lon1, lat2, lon2) -> tuple[float, float, float]:
     nmi = km * 0.539956803  # nautical miles
     mi = km * 0.621371192  # miles
     return km
+
+
+def train_kmeans(df_rp: pd.DataFrame, n_clusters: int, random_state: int):
+    """
+    Train a k-means model on the reference points.
+    :param df_rp: DataFrame of reference points
+    :param n_clusters: Number of clusters
+    :param random_state: Random state for reproducibility
+    :return: Trained k-means model and cluster labels for the reference points
+    """
+    coords = df_rp[['lat', 'lng']]
+    kmeans = KMeans(n_clusters=n_clusters, random_state=random_state)
+    cluster_labels = kmeans.fit_predict(coords)
+    return kmeans, cluster_labels
