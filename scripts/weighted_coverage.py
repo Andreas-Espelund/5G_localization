@@ -105,7 +105,7 @@ def wknn(
     num_tps = df_tp.shape[0]
     k_values = range(1, k_max + 1)
     TP_est_location = [None] * len(k_values)
-    k_avg_error = {}
+    k_avg_error = []
 
     # Extract real positions of test points
     real_lat = df_tp["lat"].values
@@ -138,15 +138,15 @@ def wknn(
         )
         average_error_pow = np.mean(km_pow)
 
-        k_avg_error[this_k] = average_error_pow
-
+        # k_avg_error[this_k] = average_error_pow
+        k_avg_error.append(average_error_pow)
         # Store estimated locations
         TP_est_location_k = np.zeros((num_tps, 2))
         TP_est_location_k[:, 0] = lat_k_TP
         TP_est_location_k[:, 1] = long_k_TP
         TP_est_location[i] = TP_est_location_k
 
-    return TP_est_location, k_avg_error
+    return TP_est_location, np.array(k_avg_error)
 
 
 def run_weighted_coverage(dataset: pd.DataFrame, rf_param: RF_PARAM, k_max: int,
@@ -163,7 +163,6 @@ def run_weighted_coverage(dataset: pd.DataFrame, rf_param: RF_PARAM, k_max: int,
 
     :return: Estimated locations and average error for each k value
     """
-    print("Starting test")
     # Shuffle the dataframe
     df = dataset.sample(frac=1, random_state=random_seed).reset_index(drop=True)
 
@@ -190,7 +189,8 @@ def process_test_points(df_tp, df_rp, kMeans, unique_npcis, rf_param, k_max):
     df_tp['cluster'] = test_clusters
     cluster_groups = df_tp.groupby('cluster')
 
-    results = []
+    locations = []
+    errors = []
 
     with ThreadPoolExecutor() as executor:
         futures = [
@@ -199,13 +199,10 @@ def process_test_points(df_tp, df_rp, kMeans, unique_npcis, rf_param, k_max):
         ]
 
         for future in as_completed(futures):
-            results.append(future.result())
+            TP_est_location, k_avg_error = future.result()
+            errors.append(k_avg_error)
 
-    # Combine results from all clusters
-    TP_est_location, k_avg_error = zip(*results)
-
-    print(k_avg_error)
-    return np.concatenate(TP_est_location), np.concatenate(k_avg_error)
+    return None, np.vstack(errors)
 
 
 def process_cluster(cluster, df_tp_cluster, df_rp, unique_npcis, rf_param, k_max):
@@ -220,41 +217,5 @@ def process_cluster(cluster, df_tp_cluster, df_rp, unique_npcis, rf_param, k_max
     W, idx_sort = compute_weights(m_rfp, idx_rfp, m_tp, idx_tp)
 
     TP_est_location, k_avg_error = wknn(df_tp_cluster, rps_in_cluster, idx_sort, W, k_max)
-
-    print(k_avg_error)
-    return TP_est_location, k_avg_error
-
-
-def wknn_single_point(tp: pd.Series, rps: pd.DataFrame, idx_sort: np.array, W: np.array, k_max: int) -> (
-        np.array, dict):
-    num_rps = rps.shape[0]
-    k_values = range(1, k_max + 1)
-    TP_est_location = [None] * len(k_values)
-    k_avg_error = {}
-
-    real_lat = tp["lat"]
-    real_long = tp["lng"]
-    real_position = np.array([[real_lat, real_long]])
-
-    for i, this_k in enumerate(k_values):
-        RFP_selected_idx = idx_sort[:this_k]
-        lat_k_RFP_matrix = rps.iloc[RFP_selected_idx]["lat"].values
-        long_k_RFP_matrix = rps.iloc[RFP_selected_idx]["lng"].values
-
-        sum_lat = np.sum(lat_k_RFP_matrix * W[:this_k])
-        sum_long = np.sum(long_k_RFP_matrix * W[:this_k])
-
-        sum_weights = np.sum(W[:this_k])
-        lat_k_TP = sum_lat / sum_weights if sum_weights != 0 else np.nan
-        long_k_TP = sum_long / sum_weights if sum_weights != 0 else np.nan
-
-        km_pow = haversine_distance(
-            real_position[:, 0], real_position[:, 1], np.array([lat_k_TP]), np.array([long_k_TP])
-        )
-        average_error_pow = np.mean(km_pow)
-
-        k_avg_error[this_k] = average_error_pow
-        TP_est_location_k = np.array([[lat_k_TP, long_k_TP]])
-        TP_est_location[i] = TP_est_location_k
 
     return TP_est_location, k_avg_error
