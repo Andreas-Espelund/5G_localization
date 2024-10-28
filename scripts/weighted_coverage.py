@@ -1,5 +1,3 @@
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
@@ -177,6 +175,8 @@ def run_weighted_coverage(dataset: pd.DataFrame, rf_param: RF_PARAM, k_max: int,
 
     TP_est_location, k_avg_error = process_test_points(df_tp, df_rp, kMeans, unique_npcis, rf_param, k_max)
 
+    k_avg_error = k_avg_error.mean(axis=0)
+
     # return estimated locations and average error for each k-value
     return TP_est_location, k_avg_error
 
@@ -192,15 +192,9 @@ def process_test_points(df_tp, df_rp, kMeans, unique_npcis, rf_param, k_max):
     locations = []
     errors = []
 
-    with ThreadPoolExecutor() as executor:
-        futures = [
-            executor.submit(process_cluster, cluster, group, df_rp, unique_npcis, rf_param, k_max)
-            for cluster, group in cluster_groups
-        ]
-
-        for future in as_completed(futures):
-            TP_est_location, k_avg_error = future.result()
-            errors.append(k_avg_error)
+    for cluster, group in cluster_groups:
+        TP_est_location, k_avg_error = process_cluster(cluster, group, df_rp, unique_npcis, rf_param, k_max)
+        errors.append(k_avg_error)
 
     return None, np.vstack(errors)
 
