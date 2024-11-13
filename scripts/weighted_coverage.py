@@ -1,6 +1,9 @@
+import time
+
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
+from sklearn.svm import SVC
 
 from scripts.utils import (
     RF_PARAM,
@@ -148,7 +151,7 @@ def wknn(
 
 
 def run_weighted_coverage(dataset: pd.DataFrame, rf_param: RF_PARAM, k_max: int,
-                          unique_npcis: np.array, random_seed: int, n_clusters: int) -> (float, float):
+                          unique_npcis: np.array, random_seed: int, n_clusters: int, use_svm: bool) -> (float, float):
     """
     'Main' entry point.
     Splits the dataset into test and reference points.
@@ -162,28 +165,48 @@ def run_weighted_coverage(dataset: pd.DataFrame, rf_param: RF_PARAM, k_max: int,
     :return: Estimated locations and average error for each k value
     """
     # Shuffle the dataframe
+    start_time = time.time()
     df = dataset.sample(frac=1, random_state=random_seed).reset_index(drop=True)
 
     # Randomly assign points as test points (2) or reference points (1)
+    np.random.seed(random_seed)
     test_mask = np.random.rand(len(df)) <= 0.3
     df_tp = df[test_mask].copy()
     df_rp = df[~test_mask].copy()
+
+    # run without clustering
+    if n_clusters == 0:
+        TP_est_location, k_avg_error = process_test_points(df_tp, df_rp, unique_npcis, rf_param, k_max)
+        end_time = time.time()
+        complexity = len(df_tp) * len(df_rp)
+        return TP_est_location, k_avg_error, complexity, end_time - start_time
 
     # cluster the reference points
     kMeans, cluster_labels = train_kmeans(df_rp, n_clusters, 42)
     df_rp['cluster'] = cluster_labels
 
-    TP_est_location, k_avg_error = process_test_points(df_tp, df_rp, kMeans, unique_npcis, rf_param, k_max)
+    svm = None
+    if use_svm:
+        # train the SVM model
+        svm = SVC(kernel='rbf', gamma=1, C=100, random_state=random_seed)
+        svm.fit(df_rp[['lat', 'lng']], df_rp['cluster'])
 
+    TP_est_location, k_avg_error, rp_factor = (
+        process_clusters(df_tp, df_rp, kMeans, unique_npcis, rf_param, k_max, svm)
+    )
+    end_time = time.time()
     k_avg_error = k_avg_error.mean(axis=0)
-
     # return estimated locations and average error for each k-value
-    return TP_est_location, k_avg_error
+    return TP_est_location, k_avg_error, rp_factor, end_time - start_time
 
 
-def process_test_points(df_tp, df_rp, kMeans, unique_npcis, rf_param, k_max):
+def process_clusters(df_tp, df_rp, kMeans, unique_npcis, rf_param, k_max, svm):
     # Predict clusters for all test points at once
-    test_clusters = kMeans.predict(df_tp[['lat', 'lng']].values)
+
+    if svm is None:
+        test_clusters = kMeans.predict(df_tp[['lat', 'lng']].values)
+    else:
+        test_clusters = svm.predict(df_tp[['lat', 'lng']])
 
     # Organize test points by cluster
     df_tp['cluster'] = test_clusters
@@ -191,25 +214,27 @@ def process_test_points(df_tp, df_rp, kMeans, unique_npcis, rf_param, k_max):
 
     locations = []
     errors = []
-
+    total_rps = 0
     for cluster, group in cluster_groups:
-        TP_est_location, k_avg_error = process_cluster(cluster, group, df_rp, unique_npcis, rf_param, k_max)
+        rps = df_rp[df_rp['cluster'] == cluster]
+        total_rps += len(group) * len(rps)
+        TP_est_location, k_avg_error = process_test_points(group, rps, unique_npcis, rf_param, k_max)
         errors.append(k_avg_error)
 
-    return None, np.vstack(errors)
+    total_rps = int(total_rps / len(df_tp))
+    return None, np.vstack(errors), total_rps
 
 
-def process_cluster(cluster, df_tp_cluster, df_rp, unique_npcis, rf_param, k_max):
+def process_test_points(df_tp_cluster, df_rp, unique_npcis, rf_param, k_max):
     # Get reference points in the current cluster
-    rps_in_cluster = df_rp[df_rp['cluster'] == cluster]
 
     # Precompute matrices for all reference points in the cluster
-    m_rfp, idx_rfp = create_point_matrix(rps_in_cluster, unique_npcis, rf_param)
+    m_rfp, idx_rfp = create_point_matrix(df_rp, unique_npcis, rf_param)
 
     m_tp, idx_tp = create_point_matrix(df_tp_cluster, unique_npcis, rf_param)
 
     W, idx_sort = compute_weights(m_rfp, idx_rfp, m_tp, idx_tp)
 
-    TP_est_location, k_avg_error = wknn(df_tp_cluster, rps_in_cluster, idx_sort, W, k_max)
+    TP_est_location, k_avg_error = wknn(df_tp_cluster, df_rp, idx_sort, W, k_max)
 
     return TP_est_location, k_avg_error

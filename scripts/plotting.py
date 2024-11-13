@@ -3,6 +3,16 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.ticker import ScalarFormatter
 
+plt.rcParams.update({
+    'font.size': 22,  # Default text size
+    'axes.titlesize': 26,  # Title size
+    'axes.labelsize': 26,  # X and Y label size
+    'xtick.labelsize': 22,  # X tick label size
+    'ytick.labelsize': 22,  # Y tick label size
+    'legend.fontsize': 20,  # Legend text size
+    'figure.titlesize': 30  # Figure title size
+})
+
 
 def geo_plot_points(df: pd.DataFrame):
     """
@@ -134,3 +144,71 @@ def make_lat_lng_scatterplot(df: pd.DataFrame, col: str, col_label: str, title: 
         plt.ylabel('Longitude')
         plt.legend(title=col_label, bbox_to_anchor=(-0.1, -0.1))
         plt.show()
+
+
+def make_bar_plot(
+        df: pd.DataFrame,
+        x_col: str,
+        y_col: str,
+        title: str,
+        x_label: str,
+        y_label: str,
+        color: str = 'none',
+        edgecolor: str = 'forestgreen',
+        hatch: str = 'O',
+        linewidth: int = 2,
+        x_limits: (int, int) = None,
+        y_limits: (int, int) = None,
+        bar_labels: bool = False,
+):
+    """
+    Creates a generic bar plot with customizable styling.
+
+    :param bar_labels: Should draw values on the bars
+    :param df: DataFrame containing the data to plot
+    :param x_col: Column name for x-axis values
+    :param y_col: Column name for y-axis values
+    :param title: Title of the plot
+    :param x_label: Label for the x-axis
+    :param y_label: Label for the y-axis
+    :param color: Fill color for bars
+    :param edgecolor: Edge color for bars
+    :param hatch: Hatch pattern for bars
+    :param linewidth: Line width for bar edges
+    :param x_limits: Tuple specifying x-axis limits
+    :param y_limits: Tuple specifying y-axis limits
+    """
+    plt.figure(figsize=(10, 8))
+
+    # Create a bar plot
+    bars = plt.bar(
+        df[x_col],
+        df[y_col],
+        color=color,
+        edgecolor=edgecolor,
+        hatch=hatch,
+        linewidth=linewidth
+    )
+
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(title)
+    plt.xticks(df[x_col])  # Ensure each bar is labeled with its x-axis value
+
+    # Set x and y limits if specified
+    if x_limits:
+        plt.xlim(x_limits)
+    if y_limits:
+        plt.ylim(y_limits)
+
+    # Format y-axis to display percentage if applicable
+    plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{int(x)}%'))
+
+    # Annotate each bar with its height
+    if bar_labels:
+        for bar in bars:
+            yval = bar.get_height()
+            plt.text(bar.get_x() + bar.get_width() / 2, yval, f'{yval:.1f}%', ha='center', va='bottom',
+                     fontsize='small')
+
+    plt.show()
