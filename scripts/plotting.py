@@ -1,7 +1,8 @@
 import folium
 import matplotlib.pyplot as plt
 import pandas as pd
-from matplotlib.ticker import ScalarFormatter
+
+from scripts.utils import cluster_color_mapping
 
 plt.rcParams.update({
     'font.size': 22,  # Default text size
@@ -77,73 +78,32 @@ def make_boxplot(df: pd.DataFrame, title: str, x_label: str, y_label: str):
     plt.show()
 
 
-def make_lat_lng_scatterplot(df: pd.DataFrame, col: str, col_label: str, title: str, plot_individual: bool = False):
-    campaign_color_mapping = {
-        0: 'orange',
-        1: 'red',
-        2: 'green',
-        3: 'blue',
-        4: 'yellow',
-        5: 'purple',
-        6: 'teal'
-    }
+def make_lat_lng_scatterplot(df: pd.DataFrame, col: str, col_label: str, title: str):
+    plt.figure(figsize=(18, 14))
 
-    cluster_color_mapping = {
-        0: 'orange',
-        1: 'red',
-        2: 'green',
-        3: 'blue',
-        4: 'yellow',
-        5: 'purple',
-        6: 'teal',
-        7: 'pink',
-        8: 'brown',
-        9: 'gray',
-        10: 'cyan',
-        11: 'magenta',
-        12: 'lime',
-        13: 'navy',
-        14: 'maroon',
-        15: 'olive',
-        16: 'silver',
-        17: 'gold',
-        18: 'lavender',
-        19: 'wheat',
-        20: 'turquoise'
-    }
+    for name, group in df.groupby(col):
+        plt.scatter(group['lat'], group['lng'], c=cluster_color_mapping[name], label=f"{col_label} {name}", alpha=0.8)
+    offset = 0.00025
+    # plot the points that have been placed in the wrong cluster
+    for cluster, group in df.groupby('cluster'):
+        misplaced = group[group['prediction'] != cluster]
+        for _, row in misplaced.iterrows():
+            plt.scatter(row['lat'], row['lng'], c='black', alpha=1, marker='d', s=250)
 
-    if col == 'campaign_id':
-        map = campaign_color_mapping
+            # top triangle show the predicted cluster, shown with its color
+            plt.scatter(row['lat'], row['lng'] + offset, c=cluster_color_mapping[row['prediction']], alpha=1,
+                        marker='^', s=100)
+            # bottom triangle show the correct cluster, shown with its color
+            plt.scatter(row['lat'], row['lng'] - offset, c=cluster_color_mapping[cluster], alpha=1, marker='v', s=100)
 
-    if col == 'prediction':
-        map = cluster_color_mapping
-
-    if map is None:
-        raise ValueError('Invalid map')
-
-    plt.figure(figsize=(8, 6))
-    for name, df in df.groupby(col):
-        plt.scatter(df['lat'], df['lng'], c=map[name], label=f"{col_label} {name}", alpha=0.2)
-
+    ncol = 1
+    if df[col].nunique() > 9:
+        ncol = 2
     plt.xlabel('Latitude')
     plt.ylabel('Longitude')
     plt.title(title)
-    plt.legend(title=col_label)
+    plt.legend(title=col_label, loc='lower left', ncol=ncol)
     plt.show()
-
-    if not plot_individual: return
-
-    for name, df in df.groupby(col):
-        plt.figure(figsize=(5, 3))
-        plt.scatter(df['lat'], df['lng'], c=map[name], label=f"{col_label} {name}", alpha=1)
-        plt.gca().xaxis.set_major_formatter(ScalarFormatter(useOffset=False))
-        plt.gca().yaxis.set_major_formatter(ScalarFormatter(useOffset=False))
-
-        plt.title(f"{title} for {col_label} {name}")
-        plt.xlabel('Latitude')
-        plt.ylabel('Longitude')
-        plt.legend(title=col_label, bbox_to_anchor=(-0.1, -0.1))
-        plt.show()
 
 
 def make_bar_plot(
@@ -178,7 +138,7 @@ def make_bar_plot(
     :param x_limits: Tuple specifying x-axis limits
     :param y_limits: Tuple specifying y-axis limits
     """
-    plt.figure(figsize=(10, 8))
+    plt.figure(figsize=(20, 8))
 
     # Create a bar plot
     bars = plt.bar(

@@ -2,7 +2,6 @@ from enum import Enum
 
 import numpy as np
 import pandas as pd
-from sklearn.cluster import KMeans
 
 
 class RF_PARAM(Enum):
@@ -17,6 +16,30 @@ MISS_REF_VALUES = {
     RF_PARAM.NSINR: -40,
     RF_PARAM.NRSRQ: -40,
     RF_PARAM.NRSRP: -160,
+}
+
+cluster_color_mapping = {
+    0: 'orange',
+    1: 'red',
+    2: 'green',
+    3: 'blue',
+    4: 'yellow',
+    5: 'purple',
+    6: 'brown',
+    7: 'pink',
+    8: 'teal',
+    9: 'gray',
+    10: 'cyan',
+    11: 'magenta',
+    12: 'lime',
+    13: 'navy',
+    14: 'maroon',
+    15: 'olive',
+    16: 'silver',
+    17: 'gold',
+    18: 'lavender',
+    19: 'wheat',
+    20: 'turquoise'
 }
 
 
@@ -135,17 +158,3 @@ def haversine_distance(lat1, lon1, lat2, lon2) -> tuple[float, float, float]:
     nmi = km * 0.539956803  # nautical miles
     mi = km * 0.621371192  # miles
     return km
-
-
-def train_kmeans(df_rp: pd.DataFrame, n_clusters: int, random_state: int):
-    """
-    Train a k-means model on the reference points.
-    :param df_rp: DataFrame of reference points
-    :param n_clusters: Number of clusters
-    :param random_state: Random state for reproducibility
-    :return: Trained k-means model and cluster labels for the reference points
-    """
-    coords = df_rp[['lat', 'lng']].values
-    kmeans = KMeans(n_clusters=n_clusters, random_state=random_state)
-    cluster_labels = kmeans.fit_predict(coords)
-    return kmeans, cluster_labels
