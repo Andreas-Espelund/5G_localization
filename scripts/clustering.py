@@ -24,7 +24,7 @@ def aggregate_nsinr_by_npci(measurements_matrix, rf_param: RF_PARAM):
     return measurements_matrix.groupby('NPCI')[rf_param.value].mean().to_dict()
 
 
-def flatten_matrix_values_to_columns(df: pd.DataFrame, rf_param: RF_PARAM)
+def flatten_matrix_values_to_columns(df: pd.DataFrame, rf_param: RF_PARAM):
     df['rf_feature'] = df['measurements_matrix'].apply(lambda x: aggregate_nsinr_by_npci(x, rf_param))
     npcis_df = df['rf_feature'].apply(pd.Series)
     df = pd.concat([df, npcis_df], axis=1)
@@ -37,14 +37,14 @@ def flatten_matrix_values_to_columns(df: pd.DataFrame, rf_param: RF_PARAM)
     return df[feature_columns]
 
 
-def train_random_forest(df: pd.DataFrame, rf_param: RF_PARAM, n_estimators: int, random_state: int):
+def train_random_forest(df: pd.DataFrame, unique_npcis, rf_param: RF_PARAM, n_estimators: int, random_state: int):
+    from scripts.weighted_coverage import create_point_matrix
+    df_features, _ = create_point_matrix(df, unique_npcis, rf_param)
 
-    df_features = flatten_matrix_values_to_columns(df, rf_param)
     X = df_features
     y = df['cluster']
 
     rf_model = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)
-
     rf_model.fit(X, y)
 
     return rf_model

@@ -3,12 +3,12 @@ import time
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
+from sklearn.ensemble import RandomForestClassifier
 
-from scripts.clustering import train_random_forest, flatten_matrix_values_to_columns
 from scripts.utils import (
     RF_PARAM,
     get_miss_ref_value,
-    haversine_distance, train_kmeans
+    haversine_distance,
 )
 
 
@@ -130,8 +130,13 @@ def wknn(
 
         # Compute estimated coordinates of test points
         sum_weights = np.sum(W[:, :this_k], axis=1)
-        lat_k_TP = np.where(sum_weights != 0, sum_lat / sum_weights, np.nan)
-        long_k_TP = np.where(sum_weights != 0, sum_long / sum_weights, np.nan)
+        try:
+            lat_k_TP = np.where(sum_weights != 0, sum_lat / sum_weights, np.nan)
+            long_k_TP = np.where(sum_weights != 0, sum_long / sum_weights, np.nan)
+        except ZeroDivisionError:
+            lat_k_TP = np.nan
+            long_k_TP = np.nan
+            print(f'zero devision error for {this_k}')
 
         # Compute errors using Haversine formula
         km_pow = haversine_distance(
@@ -151,12 +156,16 @@ def wknn(
 
 
 def run_weighted_coverage(dataset: pd.DataFrame, rf_param: RF_PARAM, k_max: int,
-                          unique_npcis: np.array, random_seed: int, n_clusters: int) -> (float, float):
+                          unique_npcis: np.array, random_seed: int, n_clusters: int,
+                          rf_model: RandomForestClassifier) -> (float, float):
     """
     'Main' entry point.
     Splits the dataset into test and reference points.
     Creates the point matrecies and calculates the weights.
     Runs wKNN to estimate position and calculate error.
+    :param random_seed:
+    :param n_clusters:
+    :param rf_model:
     :param unique_npcis:
     :param dataset: Original dataset
     :param rf_param: What rf param to use
@@ -181,14 +190,8 @@ def run_weighted_coverage(dataset: pd.DataFrame, rf_param: RF_PARAM, k_max: int,
         complexity = len(df_tp) * len(df_rp)
         return TP_est_location, k_avg_error, complexity, end_time - start_time
 
-    # cluster the reference points
-    kMeans, cluster_labels = train_kmeans(df_rp, n_clusters, random_seed)
-    df_rp['cluster'] = cluster_labels
-
-    rf_model = train_random_forest(df_rp, rf_param, n_clusters, random_seed)
-
     TP_est_location, k_avg_error, rp_factor = (
-        process_clusters(df_tp, df_rp, kMeans, unique_npcis, rf_param, k_max, rf_model)
+        process_clusters(df_tp, df_rp, unique_npcis, rf_param, k_max, rf_model)
     )
     end_time = time.time()
     k_avg_error = k_avg_error.mean(axis=0)
@@ -196,11 +199,11 @@ def run_weighted_coverage(dataset: pd.DataFrame, rf_param: RF_PARAM, k_max: int,
     return TP_est_location, k_avg_error, rp_factor, end_time - start_time
 
 
-def process_clusters(df_tp, df_rp, kMeans, unique_npcis, rf_param, k_max, rf_model):
+def process_clusters(df_tp, df_rp, unique_npcis, rf_param, k_max, rf_model):
     # Predict clusters for all test points at once
-    df_features = flatten_matrix_values_to_columns(df_tp, rf_param)
+    tp_features, _ = create_point_matrix(df_tp, unique_npcis, rf_param)
 
-    test_clusters = rf_model.predict(df_features)
+    test_clusters = rf_model.predict(tp_features)
 
     # Organize test points by cluster
     df_tp['cluster'] = test_clusters
