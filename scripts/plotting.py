@@ -4,15 +4,17 @@ import pandas as pd
 
 from scripts.utils import cluster_color_mapping
 
-plt.rcParams.update({
-    'font.size': 22,  # Default text size
-    'axes.titlesize': 26,  # Title size
-    'axes.labelsize': 26,  # X and Y label size
-    'xtick.labelsize': 22,  # X tick label size
-    'ytick.labelsize': 22,  # Y tick label size
-    'legend.fontsize': 20,  # Legend text size
-    'figure.titlesize': 30  # Figure title size
-})
+plt.rcParams.update(
+    {
+        "font.size": 32,  # Default text size
+        "axes.titlesize": 32,  # Title size
+        "axes.labelsize": 32,  # X and Y label size
+        "xtick.labelsize": 32,  # X tick label size
+        "ytick.labelsize": 32,  # Y tick label size
+        "legend.fontsize": 26,  # Legend text size
+        "figure.titlesize": 32,  # Figure title size
+    }
+)
 
 
 def geo_plot_points(df: pd.DataFrame):
@@ -39,14 +41,23 @@ def geo_plot_points(df: pd.DataFrame):
     m.save("map.html")
 
 
-def make_boxplot(df: pd.DataFrame, title: str, x_label: str, y_label: str):
+def make_boxplot(
+    df: pd.DataFrame,
+    title: str,
+    x_label: str,
+    y_label: str,
+    color: str = "forestgreen",
+    baseline: float = None,
+):
     """
     Creates a boxplot of the given dataframe.
 
+    :param baseline:
     :param df:
     :param title:
     :param x_label:
     :param y_label:
+    :param color: Color of the boxes
     """
     data_values = [df[col] for col in df.columns]
 
@@ -55,24 +66,27 @@ def make_boxplot(df: pd.DataFrame, title: str, x_label: str, y_label: str):
     plot = plt.boxplot(
         data_values,
         patch_artist=True,
-        labels=df.columns,
-        medianprops=median_props
+        tick_labels=df.columns,
+        medianprops=median_props,
     )
-    hatch_pattern = 'O'
-    hatch_color = 'forestgreen'
+    for patch in plot["boxes"]:
+        patch.set_facecolor(color)
 
-    for patch in plot['boxes']:
-        patch.set(hatch=hatch_pattern, edgecolor=hatch_color)
-        patch.set_facecolor('none')
-        patch.set_edgecolor(hatch_color)
+    if baseline:
+        plt.axhline(
+            y=baseline,
+            color="red",
+            linestyle="-",
+            linewidth=2,
+            label="Baseline",
+        )
+        plt.legend(loc="upper right")
 
     # formatting the plot
     plt.title(title)
     plt.grid(axis="y")
-    plt.xlabel(x_label, fontsize=18)
-    plt.ylabel(y_label, fontsize=18)
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
 
     # Show the plot
     plt.show()
@@ -82,44 +96,63 @@ def make_lat_lng_scatterplot(df: pd.DataFrame, col: str, col_label: str, title: 
     plt.figure(figsize=(18, 14))
 
     for name, group in df.groupby(col):
-        plt.scatter(group['lat'], group['lng'], c=cluster_color_mapping[name], label=f"{col_label} {name}", alpha=0.8)
+        plt.scatter(
+            group["lat"],
+            group["lng"],
+            c=cluster_color_mapping[name],
+            label=f"{col_label} {name}",
+            alpha=0.8,
+        )
     offset = 0.00025
     # plot the points that have been placed in the wrong cluster
-    for cluster, group in df.groupby('cluster'):
-        misplaced = group[group['prediction'] != cluster]
+    for cluster, group in df.groupby("cluster"):
+        misplaced = group[group["prediction"] != cluster]
         for _, row in misplaced.iterrows():
-            plt.scatter(row['lat'], row['lng'], c='black', alpha=1, marker='d', s=250)
+            plt.scatter(row["lat"], row["lng"], c="black", alpha=1, marker="d", s=250)
 
             # top triangle show the predicted cluster, shown with its color
-            plt.scatter(row['lat'], row['lng'] + offset, c=cluster_color_mapping[row['prediction']], alpha=1,
-                        marker='^', s=100)
+            plt.scatter(
+                row["lat"],
+                row["lng"] + offset,
+                c=cluster_color_mapping[row["prediction"]],
+                alpha=1,
+                marker="^",
+                s=100,
+            )
             # bottom triangle show the correct cluster, shown with its color
-            plt.scatter(row['lat'], row['lng'] - offset, c=cluster_color_mapping[cluster], alpha=1, marker='v', s=100)
+            plt.scatter(
+                row["lat"],
+                row["lng"] - offset,
+                c=cluster_color_mapping[cluster],
+                alpha=1,
+                marker="v",
+                s=100,
+            )
 
     ncol = 1
     if df[col].nunique() > 9:
         ncol = 2
-    plt.xlabel('Latitude')
-    plt.ylabel('Longitude')
+    plt.xlabel("Latitude")
+    plt.ylabel("Longitude")
     plt.title(title)
-    plt.legend(title=col_label, loc='lower left', ncol=ncol)
+    plt.legend(title=col_label, loc="lower left", ncol=ncol)
     plt.show()
 
 
 def make_bar_plot(
-        df: pd.DataFrame,
-        x_col: str,
-        y_col: str,
-        title: str,
-        x_label: str,
-        y_label: str,
-        color: str = 'none',
-        edgecolor: str = 'forestgreen',
-        hatch: str = 'O',
-        linewidth: int = 2,
-        x_limits: (int, int) = None,
-        y_limits: (int, int) = None,
-        bar_labels: bool = False,
+    df: pd.DataFrame,
+    x_col: str,
+    y_col: str,
+    title: str,
+    x_label: str,
+    y_label: str,
+    color: str = "none",
+    edgecolor: str = "forestgreen",
+    hatch: str = "O",
+    linewidth: int = 2,
+    x_limits: (int, int) = None,
+    y_limits: (int, int) = None,
+    bar_labels: bool = False,
 ):
     """
     Creates a generic bar plot with customizable styling.
@@ -147,7 +180,7 @@ def make_bar_plot(
         color=color,
         edgecolor=edgecolor,
         hatch=hatch,
-        linewidth=linewidth
+        linewidth=linewidth,
     )
 
     plt.xlabel(x_label)
@@ -162,13 +195,19 @@ def make_bar_plot(
         plt.ylim(y_limits)
 
     # Format y-axis to display percentage if applicable
-    plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f'{int(x)}%'))
+    plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{int(x)}%"))
 
     # Annotate each bar with its height
     if bar_labels:
         for bar in bars:
             yval = bar.get_height()
-            plt.text(bar.get_x() + bar.get_width() / 2, yval, f'{yval:.1f}%', ha='center', va='bottom',
-                     fontsize='small')
+            plt.text(
+                bar.get_x() + bar.get_width() / 2,
+                yval,
+                f"{yval:.1f}%",
+                ha="center",
+                va="bottom",
+                fontsize="small",
+            )
 
     plt.show()

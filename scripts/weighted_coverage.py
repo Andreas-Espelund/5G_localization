@@ -31,7 +31,7 @@ def create_point_matrix(df: pd.DataFrame, unique_npcis: np.array, rf_param: RF_P
     point_matrix = np.full(
         shape=[num_points, num_unique_npcis],
         fill_value=miss_ref_value,
-        dtype=np.float64
+        dtype=np.float64,
     )
 
     idx_matrix = np.zeros(shape=[num_points, num_unique_npcis])
@@ -52,7 +52,9 @@ def create_point_matrix(df: pd.DataFrame, unique_npcis: np.array, rf_param: RF_P
     return point_matrix, idx_matrix
 
 
-def compute_weights(m_rfp: np.array, idx_rfp: np.array, m_tp: np.array, idx_tp: np.array) -> (np.array, np.array):
+def compute_weights(
+    m_rfp: np.array, idx_rfp: np.array, m_tp: np.array, idx_tp: np.array
+) -> (np.array, np.array):
     """
     Computes weights for two matrices.
     This is used for the weights in wKNN.
@@ -89,11 +91,11 @@ def compute_weights(m_rfp: np.array, idx_rfp: np.array, m_tp: np.array, idx_tp: 
 
 
 def wknn(
-        df_tp: pd.DataFrame,
-        df_rp: pd.DataFrame,
-        idx_sort: np.array,
-        W: np.array,
-        k_max: int,
+    df_tp: pd.DataFrame,
+    df_rp: pd.DataFrame,
+    idx_sort: np.array,
+    W: np.array,
+    k_max: int,
 ) -> (np.array, dict):
     """
     :param df_tp: Dataframe of reference points
@@ -119,10 +121,12 @@ def wknn(
         RFP_selected_idx = idx_sort[:, :this_k]
 
         # Extract coordinates of the selected reference points
-        lat_k_RFP_matrix = (df_rp.iloc[RFP_selected_idx.flatten()]["lat"]
-                            .values.reshape(RFP_selected_idx.shape))
-        long_k_RFP_matrix = (df_rp.iloc[RFP_selected_idx.flatten()]["lng"]
-                             .values.reshape(RFP_selected_idx.shape))
+        lat_k_RFP_matrix = df_rp.iloc[RFP_selected_idx.flatten()]["lat"].values.reshape(
+            RFP_selected_idx.shape
+        )
+        long_k_RFP_matrix = df_rp.iloc[RFP_selected_idx.flatten()][
+            "lng"
+        ].values.reshape(RFP_selected_idx.shape)
 
         # Compute weighted sums of coordinates
         sum_lat = np.sum(lat_k_RFP_matrix * W[:, :this_k], axis=1)
@@ -136,7 +140,7 @@ def wknn(
         except ZeroDivisionError:
             lat_k_TP = np.nan
             long_k_TP = np.nan
-            print(f'zero devision error for {this_k}')
+            print(f"zero devision error for {this_k}")
 
         # Compute errors using Haversine formula
         km_pow = haversine_distance(
@@ -155,9 +159,15 @@ def wknn(
     return TP_est_location, np.array(k_avg_error)
 
 
-def run_weighted_coverage(dataset: pd.DataFrame, rf_param: RF_PARAM, k_max: int,
-                          unique_npcis: np.array, random_seed: int, n_clusters: int,
-                          rf_model: RandomForestClassifier) -> (float, float):
+def run_weighted_coverage(
+    dataset: pd.DataFrame,
+    rf_param: RF_PARAM,
+    k_max: int,
+    unique_npcis: np.array,
+    random_seed: int,
+    n_clusters: int,
+    rf_model: RandomForestClassifier,
+) -> (float, float):
     """
     'Main' entry point.
     Splits the dataset into test and reference points.
@@ -185,13 +195,15 @@ def run_weighted_coverage(dataset: pd.DataFrame, rf_param: RF_PARAM, k_max: int,
 
     # run without clustering
     if n_clusters == 0:
-        TP_est_location, k_avg_error = process_test_points(df_tp, df_rp, unique_npcis, rf_param, k_max)
+        TP_est_location, k_avg_error = process_test_points(
+            df_tp, df_rp, unique_npcis, rf_param, k_max
+        )
         end_time = time.time()
         complexity = len(df_tp) * len(df_rp)
         return TP_est_location, k_avg_error, complexity, end_time - start_time
 
-    TP_est_location, k_avg_error, rp_factor = (
-        process_clusters(df_tp, df_rp, unique_npcis, rf_param, k_max, rf_model)
+    TP_est_location, k_avg_error, rp_factor = process_clusters(
+        df_tp, df_rp, unique_npcis, rf_param, k_max, rf_model
     )
     end_time = time.time()
     k_avg_error = k_avg_error.mean(axis=0)
@@ -204,21 +216,21 @@ def process_clusters(df_tp, df_rp, unique_npcis, rf_param, k_max, rf_model):
     tp_features, _ = create_point_matrix(df_tp, unique_npcis, rf_param)
 
     test_clusters = rf_model.predict(tp_features)
-
     # Organize test points by cluster
-    df_tp['cluster'] = test_clusters
-    cluster_groups = df_tp.groupby('cluster')
+    df_tp["predicted_cluster"] = test_clusters
+    cluster_groups = df_tp.groupby("predicted_cluster")
 
     locations = []
     errors = []
     total_rps = 0
     for cluster, group in cluster_groups:
-        rps = df_rp[df_rp['cluster'] == cluster]
+        rps = df_rp[df_rp["cluster"] == cluster]
         total_rps += len(group) * len(rps)
-        TP_est_location, k_avg_error = process_test_points(group, rps, unique_npcis, rf_param, k_max)
+        TP_est_location, k_avg_error = process_test_points(
+            group, rps, unique_npcis, rf_param, k_max
+        )
         errors.append(k_avg_error)
 
-    total_rps = int(total_rps / len(df_tp))
     return None, np.vstack(errors), total_rps
 
 

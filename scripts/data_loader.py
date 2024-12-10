@@ -60,7 +60,7 @@ def flatten_nested_array(nested_array: np.array) -> np.array:
 
 
 def load_matlab_file_as_df(
-        filename: str, dataset: str, usecols: Union[None, List[str]] = None
+    filename: str, dataset: str, usecols: Union[None, List[str]] = None
 ) -> pd.DataFrame:
     """
     Load the selected filename from a MATLAB file into a pandas DataFrame.
@@ -109,5 +109,31 @@ def load_matlab_file_as_df(
     # Only include wanted columns
     if usecols is not None:
         df = df[usecols]
+
+    return df
+
+
+def load_dataframe(filename: str) -> pd.DataFrame:
+    """
+    Load the selected filename from a MATLAB file into a pandas DataFrame.
+    If .h5 file exists, load the data into a pandas DataFrame.
+
+    :param filename: str, the path to the .mat file.
+    :return: pd.DataFrame, the data as a pandas DataFrame.
+    """
+    dataframe_filename = f"{filename}_dataframe.h5"
+
+    try:
+        df = pd.read_hdf(dataframe_filename)
+        print(f"Loaded dataframe from .h5 file: {dataframe_filename}")
+    except FileNotFoundError:
+        print(f"Loading data from matlab file: {filename}")
+
+        df = load_matlab_file_as_df(
+            filename=filename,
+            dataset="dataSet_smooth",  # dataSet, dataSet_interp or dataSet_smooth
+            usecols=["lat", "lng", "measurements_matrix", "campaign_id"],
+        )
+        df.to_hdf(dataframe_filename, key="df", mode="w")
 
     return df

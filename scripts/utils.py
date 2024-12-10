@@ -19,27 +19,27 @@ MISS_REF_VALUES = {
 }
 
 cluster_color_mapping = {
-    0: 'orange',
-    1: 'red',
-    2: 'green',
-    3: 'blue',
-    4: 'yellow',
-    5: 'purple',
-    6: 'brown',
-    7: 'pink',
-    8: 'teal',
-    9: 'gray',
-    10: 'cyan',
-    11: 'magenta',
-    12: 'lime',
-    13: 'navy',
-    14: 'maroon',
-    15: 'olive',
-    16: 'silver',
-    17: 'gold',
-    18: 'lavender',
-    19: 'wheat',
-    20: 'turquoise'
+    0: "orange",
+    1: "red",
+    2: "green",
+    3: "blue",
+    4: "yellow",
+    5: "purple",
+    6: "brown",
+    7: "pink",
+    8: "teal",
+    9: "gray",
+    10: "cyan",
+    11: "magenta",
+    12: "lime",
+    13: "navy",
+    14: "maroon",
+    15: "olive",
+    16: "silver",
+    17: "gold",
+    18: "lavender",
+    19: "wheat",
+    20: "turquoise",
 }
 
 
@@ -54,7 +54,7 @@ def get_miss_ref_value(rf_param: RF_PARAM) -> int:
 
 
 def dataset_reference_test_split(
-        df: pd.DataFrame, test_point_probability: float
+    df: pd.DataFrame, test_point_probability: float
 ) -> (pd.DataFrame, pd.DataFrame):
     """
     Takes the dataset and returns two dataframes for test-points and reference-points
@@ -75,7 +75,10 @@ def dataset_reference_test_split(
 def filter_unique_npcis_by_operator(df, operator_choice):
     # Extract NPCIs and operator IDs from the measurements
     npcis_with_operators = np.concatenate(
-        df['measurements_matrix'].apply(lambda x: x[['NPCI', 'operatorID']].values).values)
+        df["measurements_matrix"]
+        .apply(lambda x: x[["NPCI", "operatorID"]].values)
+        .values
+    )
 
     # Filter NPCIs based on the operator choice
     filtered_npcis = [npc for npc, op in npcis_with_operators if op in operator_choice]
@@ -86,20 +89,20 @@ def filter_unique_npcis_by_operator(df, operator_choice):
 
 def extract_unique_npcis(df, operator_choice) -> np.array:
     npcis = []
-    for measurements in df['measurements_matrix']:
+    for measurements in df["measurements_matrix"]:
         for _, row in measurements.iterrows():
-            npc = row['NPCI'].astype(int)
-            enodeb_id = row['eNodeBID'].astype(int)
-            operator_id = row['operatorID'].astype(int)
+            npc = row["NPCI"].astype(int)
+            enodeb_id = row["eNodeBID"].astype(int)
+            operator_id = row["operatorID"].astype(int)
             # Append as a tuple
             npcis.append((npc, enodeb_id, operator_id))
 
     # Convert to a DataFrame and drop duplicates
-    npcis_df = pd.DataFrame(npcis, columns=['NPCI', 'eNodeBID', 'operatorID'])
+    npcis_df = pd.DataFrame(npcis, columns=["NPCI", "eNodeBID", "operatorID"])
     unique_npcis = npcis_df.drop_duplicates()
 
     # Filter by operator choice
-    filtered_npcis = unique_npcis[unique_npcis['operatorID'].isin(operator_choice)]
+    filtered_npcis = unique_npcis[unique_npcis["operatorID"].isin(operator_choice)]
 
     return filtered_npcis.to_numpy()
 
@@ -157,4 +160,4 @@ def haversine_distance(lat1, lon1, lat2, lon2) -> tuple[float, float, float]:
     m = km * 1000
     nmi = km * 0.539956803  # nautical miles
     mi = km * 0.621371192  # miles
-    return km
+    return m
