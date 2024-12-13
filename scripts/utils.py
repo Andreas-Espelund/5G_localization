@@ -161,3 +161,21 @@ def haversine_distance(lat1, lon1, lat2, lon2) -> tuple[float, float, float]:
     nmi = km * 0.539956803  # nautical miles
     mi = km * 0.621371192  # miles
     return m
+
+
+def dataset_tp_rp_split(
+    df: pd.DataFrame, test_point_probability: float, random_seed: int
+) -> (pd.DataFrame, pd.DataFrame):
+    """
+    Split the dataset into Test points TPs and Reference points RPs
+
+    :param df: Original dataset
+    :param test_point_probability: Probability of a point beeing a test point
+    :param random_seed: Random seed
+    :return: test points and reference points
+    """
+    np.random.seed(random_seed)
+    test_mask = np.random.rand(len(df)) <= test_point_probability
+    df_tp = df[test_mask].copy().reset_index(drop=True)
+    df_rp = df[~test_mask].copy().reset_index(drop=True)
+    return df_tp, df_rp
