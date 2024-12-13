@@ -3,12 +3,13 @@ import time
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
-from sklearn.ensemble import RandomForestClassifier
 
+from scripts.data_processing import cluster_data_and_train_random_forest
 from scripts.utils import (
     RF_PARAM,
     get_miss_ref_value,
     haversine_distance,
+    dataset_tp_rp_split,
 )
 
 
@@ -222,25 +223,29 @@ def wknn_one(
 
 
 def run_weighted_coverage(
-    df_rp: pd.DataFrame,
-    df_tp: pd.DataFrame,
+    df: pd.DataFrame,
     rf_param: RF_PARAM,
     k_max: int,
     unique_npcis: np.array,
     random_seed: int,
     n_clusters: int,
-    use_clustering: bool,
-    rf_model: RandomForestClassifier,
 ) -> (np.array, np.array, int, float):
     start_time = time.time()
 
-    if not use_clustering:
+    tmp = df.copy().sample(frac=1, random_state=random_seed).reset_index(drop=True)
+    df_tp, df_rp = dataset_tp_rp_split(tmp, 0.3, random_seed)
+
+    if not n_clusters > 0:
         TP_est_location, k_avg_error = process_test_points(
             df_tp, df_rp, unique_npcis, rf_param, k_max
         )
         end_time = time.time()
         complexity = len(df_tp) * len(df_rp)
         return TP_est_location, k_avg_error, complexity, end_time - start_time
+
+    rf_model = cluster_data_and_train_random_forest(
+        df_rp, n_clusters, unique_npcis, rf_param, random_seed
+    )
 
     TP_est_location, k_avg_error, rp_factor = process_clusters(
         df_tp, df_rp, unique_npcis, rf_param, k_max, rf_model
