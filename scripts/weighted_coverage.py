@@ -256,8 +256,7 @@ def process_clusters(df_tp, df_rp, unique_npcis, rf_param, k_max, rf_model):
     test_clusters = rf_model.predict(tp_features)
     # Organize test points by cluster
     df_tp["predicted_cluster"] = test_clusters
-    cluster_groups = df_tp.groupby("predicted_cluster")  # TODO enable prediction
-    # cluster_groups = df_tp.groupby("cluster")
+    cluster_groups = df_tp.groupby("predicted_cluster")
 
     # Initialize lists to store results
     all_tp_est_locations = []
