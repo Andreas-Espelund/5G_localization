@@ -230,12 +230,13 @@ def run_weighted_coverage(
     random_seed: int,
     n_clusters: int,
 ) -> (np.array, np.array, int, float):
-    start_time = time.time()
+
 
     tmp = df.copy().sample(frac=1, random_state=random_seed).reset_index(drop=True)
     df_tp, df_rp = dataset_tp_rp_split(tmp, 0.3, random_seed)
 
     if not n_clusters > 0:
+        start_time = time.time()
         TP_est_location, k_avg_error = process_test_points(
             df_tp, df_rp, unique_npcis, rf_param, k_max
         )
@@ -247,6 +248,7 @@ def run_weighted_coverage(
         df_rp, n_clusters, unique_npcis, rf_param, random_seed
     )
 
+    start_time = time.time() # dont include model training in the online stage timing
     TP_est_location, k_avg_error, rp_factor = process_clusters(
         df_tp, df_rp, unique_npcis, rf_param, k_max, rf_model
     )
