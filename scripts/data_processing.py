@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
@@ -9,10 +10,10 @@ def cluster_data_and_train_random_forest(
     df: pd.DataFrame,
     n_clusters: int,
     unique_npcis,
-    rf_param: RF_PARAM,
+    rf_params: list[RF_PARAM],
     random_seed: int,
 ):
-    from scripts.weighted_coverage import create_point_matrix
+    from scripts.matrix_operations import create_point_matrix
 
     #  === Cluster the data points using KMeans ===
     coords = df[["lat", "lng"]].values
@@ -23,7 +24,9 @@ def cluster_data_and_train_random_forest(
 
     # Prepare params and features
     n_estimators_rf = 100
-    df_features, _ = create_point_matrix(df, unique_npcis, rf_param)
+    df_features, _ = create_point_matrix(df, unique_npcis, rf_params)
+    df_features = np.squeeze(df_features, axis=2)
+
     X = df_features
     y = df["cluster"]
 
