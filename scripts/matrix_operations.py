@@ -1,12 +1,14 @@
+import sys
+
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
 
-from scripts.utils import RF_PARAM, get_miss_ref_value
+from scripts.utils import RF_PARAM_5G, get_miss_ref_value
 
 
 def create_point_matrix(
-    df: pd.DataFrame, unique_npcis: np.array, rf_params: list[RF_PARAM]
+    df: pd.DataFrame, unique_npcis: np.array, rf_params: list[RF_PARAM_5G]
 ):
     """
     Creates and populates a point matrix and valid index matrix for the test or reference points.
@@ -43,7 +45,7 @@ def create_point_matrix(
     for _, row in df.iterrows():
         measurements = row["measurements_matrix"]
         for _, row in measurements.iterrows():
-            npc_tuple = (row["NPCI"], row["eNodeBID"], row["operatorID"])
+            npc_tuple = (row["PCI"], row["SSB_Index"], row["operatorID"])
             if npc_tuple in npc_index_map:
                 idx = npc_index_map[npc_tuple]
                 for param_idx, rf_param in enumerate(rf_params):
@@ -83,19 +85,21 @@ def compute_weights(
 
     s = np.sum(match, axis=2)
 
-    # Avoid division by zero by setting distances to infinity where no matches exist
-    D = np.divide(D, s, out=np.full_like(D, np.inf), where=s != 0)
+    # Avoid division by zero by setting distances to very large value where no matches exist
+    realmax = sys.float_info.max
+    D = np.divide(D, s, out=np.full_like(D, realmax), where=s != 0)
+
+    # # turn D into a 2D array where the distances across different params are aggregated
+    D = np.sum(D, axis=2)
 
     # Set distances to dummy reference points to a very large value
+    idx_rfp = np.squeeze(idx_rfp)
     dummy_rfps = np.all(idx_rfp == 0, axis=1)
-    D[:, dummy_rfps] = np.inf
+    D[:, dummy_rfps] = realmax
 
     # Replace zero distances with a small value to avoid singularities
     min_nonzero_distance = np.min(D[D > 0])
     D[D == 0] = min_nonzero_distance / 20
-
-    # # turn D into a 2D array where the distances across different params are aggregated
-    D = np.sum(D, axis=2)
 
     # Sort distances and compute weights
     idx_sort = np.argsort(D, axis=1)

@@ -3,14 +3,14 @@ import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
 
-from scripts.utils import RF_PARAM
+from scripts.utils import RF_PARAM_5G
 
 
 def cluster_data_and_train_random_forest(
     df: pd.DataFrame,
     n_clusters: int,
     unique_npcis,
-    rf_params: list[RF_PARAM],
+    rf_params: list[RF_PARAM_5G],
     random_seed: int,
 ):
     from scripts.matrix_operations import create_point_matrix

@@ -23,7 +23,7 @@
       "num_npcis_toa_op2": "int8"
     },
     "matrix_cols": {
-      "NPCI": "int8",
+      "PCI": "int8",
       "SSB_Index": "int32",
       "SSB_RSSI": "float64",
       "SSS_SINR": "float64",

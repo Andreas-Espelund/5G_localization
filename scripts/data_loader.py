@@ -187,16 +187,17 @@ def load_dataframe(filename: str, network_type: NETWORK_TYPE) -> pd.DataFrame:
     :param filename: str, the path to the .mat file.
     :return: pd.DataFrame, the data as a pandas DataFrame.
     """
-    dataframe_filename = f"{filename}_dataframe.h5"
+    matlab_filename = os.path.join("./data/matlab", filename)
+    dataframe_filename = os.path.join("./data/dataframe_cache", filename)
 
     try:
         df = pd.read_hdf(dataframe_filename)
         print(f"Loaded dataframe from .h5 file: {dataframe_filename}")
     except FileNotFoundError:
-        print(f"Loading data from matlab file: {filename}")
+        print(f"Loading data from matlab file: {matlab_filename}")
 
         df = load_matlab_file_as_df(
-            filename=filename,
+            filename=matlab_filename,
             network_type=network_type,
             dataset="dataSet_interp",  # dataSet, dataSet_interp or dataSet_smooth
             usecols=["lat", "lng", "measurements_matrix", "campaign_id"],

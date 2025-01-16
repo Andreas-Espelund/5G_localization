@@ -4,11 +4,18 @@ import numpy as np
 import pandas as pd
 
 
-class RF_PARAM(Enum):
+class NB_IoT_RF_PARAM(Enum):
     RSSI = "RSSI"
     NSINR = "NSINR"
     NRSRP = "NRSRP"
     NRSRQ = "NRSRQ"
+
+
+class RF_PARAM_5G(Enum):
+    SSB_RSSI = "SSB_RSSI"
+    SSS_SINR = "SSS_SINR"
+    SSS_RSRP = "SSS_RSRP"
+    SSS_RSRQ = "SSS_RSRQ"
 
 
 class NETWORK_TYPE(Enum):
@@ -17,10 +24,10 @@ class NETWORK_TYPE(Enum):
 
 
 MISS_REF_VALUES = {
-    RF_PARAM.RSSI: -160,
-    RF_PARAM.NSINR: -40,
-    RF_PARAM.NRSRQ: -40,
-    RF_PARAM.NRSRP: -160,
+    RF_PARAM_5G.SSB_RSSI: -160,
+    RF_PARAM_5G.SSS_SINR: -40,
+    RF_PARAM_5G.SSS_RSRQ: -40,
+    RF_PARAM_5G.SSS_RSRP: -160,
 }
 
 cluster_color_mapping = {
@@ -48,7 +55,7 @@ cluster_color_mapping = {
 }
 
 
-def params_to_str(params: list[RF_PARAM]):
+def params_to_str(params: list[RF_PARAM_5G]):
     return ",".join(map(lambda x: x.value, params))
 
 
@@ -58,9 +65,9 @@ def operators_to_str(operators: np.array):
 
 def make_filename_details(
     wKNN_value: int,
-    wKNN_rf_params: [RF_PARAM],
+    wKNN_rf_params: [RF_PARAM_5G],
     cluster_range: [int],
-    cluster_params: [RF_PARAM],
+    cluster_params: [RF_PARAM_5G],
     operator_choice: np.array,
     n_runs: int,
 ):
@@ -69,7 +76,7 @@ _wKNN[K={wKNN_value},RF={params_to_str(wKNN_rf_params)}]\
 _clustering[N={cluster_range[0]}-{cluster_range[-1]},RF={params_to_str(cluster_params)}]"
 
 
-def get_miss_ref_value(rf_param: RF_PARAM) -> int:
+def get_miss_ref_value(rf_param: RF_PARAM_5G) -> int:
     """
     Get the default value for missing data
     :param rf_param: The selected RF_PARAM
@@ -113,7 +120,7 @@ def filter_unique_npcis_by_operator(df, operator_choice):
     return unique_npcis_filtered
 
 
-def extract_unique_npcis(df, operator_choice) -> np.array:
+def extract_unique_npcis_NB_IoT(df, operator_choice) -> np.array:
     npcis = []
     for measurements in df["measurements_matrix"]:
         for _, row in measurements.iterrows():
@@ -125,6 +132,26 @@ def extract_unique_npcis(df, operator_choice) -> np.array:
 
     # Convert to a DataFrame and drop duplicates
     npcis_df = pd.DataFrame(npcis, columns=["NPCI", "eNodeBID", "operatorID"])
+    unique_npcis = npcis_df.drop_duplicates()
+
+    # Filter by operator choice
+    filtered_npcis = unique_npcis[unique_npcis["operatorID"].isin(operator_choice)]
+
+    return filtered_npcis.to_numpy()
+
+
+def extract_unique_npcis(df, operator_choice) -> np.array:
+    npcis = []
+    for measurements in df["measurements_matrix"]:
+        for _, row in measurements.iterrows():
+            npc = row["PCI"].astype(int)
+            enodeb_id = row["SSB_Index"].astype(int)
+            operator_id = row["operatorID"].astype(int)
+            # Append as a tuple
+            npcis.append((npc, enodeb_id, operator_id))
+
+    # Convert to a DataFrame and drop duplicates
+    npcis_df = pd.DataFrame(npcis, columns=["PCI", "SSB_Index", "operatorID"])
     unique_npcis = npcis_df.drop_duplicates()
 
     # Filter by operator choice

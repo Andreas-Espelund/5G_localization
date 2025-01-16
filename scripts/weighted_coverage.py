@@ -6,7 +6,7 @@ import pandas as pd
 from scripts.data_processing import cluster_data_and_train_random_forest
 from scripts.matrix_operations import create_point_matrix, compute_weights
 from scripts.utils import (
-    RF_PARAM,
+    RF_PARAM_5G,
     haversine_distance,
     dataset_tp_rp_split,
 )
@@ -223,8 +223,8 @@ def wknn_one(
 
 def run_weighted_coverage(
     df: pd.DataFrame,
-    rf_params: list[RF_PARAM],
-    cluster_rf_params: list[RF_PARAM],
+    rf_params: list[RF_PARAM_5G],
+    cluster_rf_params: list[RF_PARAM_5G],
     k_max: int,
     unique_npcis: np.array(tuple[int, int, int]),
     random_seed: int,
@@ -260,8 +260,8 @@ def process_clusters(
     df_tp: pd.DataFrame,
     df_rp: pd.DataFrame,
     unique_npcis: np.array(tuple[int, int, int]),
-    rf_params: list[RF_PARAM],
-    cluster_rf_params: list[RF_PARAM],
+    rf_params: list[RF_PARAM_5G],
+    cluster_rf_params: list[RF_PARAM_5G],
     k_max: int,
     rf_model,
 ):
@@ -302,7 +302,7 @@ def process_test_points(
     df_tp: pd.DataFrame,
     df_rp: pd.DataFrame,
     unique_npcis: np.array(tuple[int, int, int]),
-    rf_params: list[RF_PARAM],
+    rf_params: list[RF_PARAM_5G],
     k_max: int,
 ):
     # Create the point matrix for the reference points

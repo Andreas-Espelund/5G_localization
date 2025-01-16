@@ -2,7 +2,7 @@ import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
 
-from scripts.utils import RF_PARAM
+from scripts.utils import RF_PARAM_5G
 
 
 def train_kmeans(df: pd.DataFrame, n_clusters: int, random_state: int):
@@ -15,7 +15,7 @@ def train_kmeans(df: pd.DataFrame, n_clusters: int, random_state: int):
 def train_random_forest(
     df: pd.DataFrame,
     unique_npcis,
-    rf_param: RF_PARAM,
+    rf_param: RF_PARAM_5G,
     n_estimators: int,
     random_state: int,
 ):
@@ -38,7 +38,7 @@ def train_cluster_classifier(
     df: pd.DataFrame,
     n_clusters: int,
     unique_npcis,
-    rf_param: RF_PARAM,
+    rf_param: RF_PARAM_5G,
     random_seed: int,
 ):
     #  === Cluster the data points using KMeans ===
