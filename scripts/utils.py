@@ -11,6 +11,11 @@ class RF_PARAM(Enum):
     NRSRQ = "NRSRQ"
 
 
+class NETWORK_TYPE(Enum):
+    _5G = "5G"
+    NB_IoT = "NB-IoT"
+
+
 MISS_REF_VALUES = {
     RF_PARAM.RSSI: -160,
     RF_PARAM.NSINR: -40,
@@ -41,6 +46,27 @@ cluster_color_mapping = {
     19: "wheat",
     20: "turquoise",
 }
+
+
+def params_to_str(params: list[RF_PARAM]):
+    return ",".join(map(lambda x: x.value, params))
+
+
+def operators_to_str(operators: np.array):
+    return ",".join(map(lambda x: str(x), operators.tolist()))
+
+
+def make_filename_details(
+    wKNN_value: int,
+    wKNN_rf_params: [RF_PARAM],
+    cluster_range: [int],
+    cluster_params: [RF_PARAM],
+    operator_choice: np.array,
+    n_runs: int,
+):
+    return f"_operators[{operators_to_str(operator_choice)}]_runs[{n_runs}]\
+_wKNN[K={wKNN_value},RF={params_to_str(wKNN_rf_params)}]\
+_clustering[N={cluster_range[0]}-{cluster_range[-1]},RF={params_to_str(cluster_params)}]"
 
 
 def get_miss_ref_value(rf_param: RF_PARAM) -> int:

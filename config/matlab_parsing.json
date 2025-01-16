@@ -1,0 +1,80 @@
+{
+  "5G": {
+    "dataset_cols": [
+      "lat",
+      "lng",
+      "measurements_matrix",
+      "num_npcis_rf_op1",
+      "logical_rf_op1",
+      "num_npcis_toa_op1",
+      "logical_toa_op1",
+      "num_npcis_rf_op2",
+      "logical_rf_op2",
+      "num_npcis_toa_op2",
+      "logical_toa_op2",
+      "campaign_id"
+    ],
+    "dataset_dtypes": {
+      "lat": "float64",
+      "lng": "float64",
+      "num_npcis_rf_op1": "int8",
+      "num_npcis_toa_op1": "int8",
+      "num_npcis_rf_op2": "int8",
+      "num_npcis_toa_op2": "int8"
+    },
+    "matrix_cols": {
+      "NPCI": "int8",
+      "SSB_Index": "int32",
+      "SSB_RSSI": "float64",
+      "SSS_SINR": "float64",
+      "SSS_RSRP": "float64",
+      "SSS_RSRQ": "float64",
+      "PPS": "float64",
+      "ToA": "float64",
+      "ToA_secondary": "float64",
+      "operatorID": "int8",
+      "campaignID": "int8"
+    }
+  },
+  "NB-IoT": {
+    "dataset_cols": [
+      "lat",
+      "lng",
+      "measurements_matrix",
+      "num_npcis_rf_op1",
+      "logical_rf_op1",
+      "num_npcis_toa_op1",
+      "logical_toa_op1",
+      "num_npcis_rf_op2",
+      "logical_rf_op2",
+      "num_npcis_toa_op2",
+      "logical_toa_op2",
+      "num_npcis_rf_op3",
+      "logical_rf_op3",
+      "num_npcis_toa_op3",
+      "logical_toa_op3",
+      "campaign_id"
+    ],
+    "dataset_dtypes": {
+      "lat": "float64",
+      "lng": "float64",
+      "num_npcis_rf_op1": "int8",
+      "num_npcis_toa_op1": "int8",
+      "num_npcis_rf_op2": "int8",
+      "num_npcis_toa_op2": "int8",
+      "num_npcis_rf_op3": "int8",
+      "num_npcis_toa_op3": "int8"
+    },
+    "matrix_cols": {
+      "NPCI": "int8",
+      "eNodeBID": "int32",
+      "RSSI": "float64",
+      "NSINR": "float64",
+      "NRSRP": "float64",
+      "NRSRQ": "float64",
+      "ToA": "float64",
+      "operatorID": "int8",
+      "campaignID": "int8"
+    }
+  }
+}
