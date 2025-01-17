@@ -141,7 +141,7 @@ def load_dataframe(filename: str, network_type: NETWORK_TYPE) -> pd.DataFrame:
     :return: pd.DataFrame, the data as a pandas DataFrame.
     """
     matlab_filename = os.path.join("./data/matlab", filename)
-    dataframe_filename = os.path.join("./data/dataframe_cache", filename)
+    dataframe_filename = os.path.join("./data/dataframe_cache", f"{filename[:-4]}.h5")
 
     try:
         df = pd.read_hdf(dataframe_filename)
