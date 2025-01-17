@@ -140,19 +140,39 @@ def extract_unique_npcis_NB_IoT(df, operator_choice) -> np.array:
     return filtered_npcis.to_numpy()
 
 
-def extract_unique_npcis(df, operator_choice) -> np.array:
-    npcis = []
-    for measurements in df["measurements_matrix"]:
-        for _, row in measurements.iterrows():
-            npc = row["PCI"].astype(int)
-            enodeb_id = row["SSB_Index"].astype(int)
-            operator_id = row["operatorID"].astype(int)
-            # Append as a tuple
-            npcis.append((npc, enodeb_id, operator_id))
+# def extract_unique_npcis(df, operator_choice) -> np.array:
+#     npcis = []
+#     for measurements in df["measurements_matrix"]:
+#         for _, row in measurements.iterrows():
+#             npc = row["PCI"].astype(int)
+#             enodeb_id = row["SSB_Index"].astype(int)
+#             operator_id = row["operatorID"].astype(int)
+#             # Append as a tuple
+#             npcis.append((npc, enodeb_id, operator_id))
+#
+#     # Convert to a DataFrame and drop duplicates
+#     npcis_df = pd.DataFrame(npcis, columns=["PCI", "SSB_Index", "operatorID"])
+#     unique_npcis = npcis_df.drop_duplicates()
+#
+#     # Filter by operator choice
+#     filtered_npcis = unique_npcis[unique_npcis["operatorID"].isin(operator_choice)]
+#
+#     return filtered_npcis.to_numpy()
 
-    # Convert to a DataFrame and drop duplicates
-    npcis_df = pd.DataFrame(npcis, columns=["PCI", "SSB_Index", "operatorID"])
-    unique_npcis = npcis_df.drop_duplicates()
+
+def extract_unique_npcis(df, operator_choice) -> np.array:
+    # Concatenate all measurements matrices into a single DataFrame
+    all_measurements = pd.concat(df["measurements_matrix"].tolist(), ignore_index=True)
+
+    # Convert the relevant columns to integers
+    all_measurements["PCI"] = all_measurements["PCI"].astype(int)
+    all_measurements["SSB_Index"] = all_measurements["SSB_Index"].astype(int)
+    all_measurements["operatorID"] = all_measurements["operatorID"].astype(int)
+
+    # Drop duplicates
+    unique_npcis = all_measurements.drop_duplicates(
+        subset=["PCI", "SSB_Index", "operatorID"]
+    )
 
     # Filter by operator choice
     filtered_npcis = unique_npcis[unique_npcis["operatorID"].isin(operator_choice)]

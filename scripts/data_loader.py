@@ -9,54 +9,7 @@ import scipy.io as sio
 from scripts.utils import NETWORK_TYPE
 
 
-# column names for the dataset in the .mat files
-# dataset_cols = [
-#     "lat",
-#     "lng",
-#     "measurements_matrix",
-#     "num_npcis_rf_op1",
-#     "logical_rf_op1",
-#     "num_npcis_toa_op1",
-#     "logical_toa_op1",
-#     "num_npcis_rf_op2",
-#     "logical_rf_op2",
-#     "num_npcis_toa_op2",
-#     "logical_toa_op2",
-#     "num_npcis_rf_op3",
-#     "logical_rf_op3",
-#     "num_npcis_toa_op3",
-#     "logical_toa_op3",
-#     "campaign_id",
-# ]
-#
-# # specific datatypes for columns
-# dataset_dtypes = {
-#     "lat": "float64",
-#     "lng": "float64",
-#     "num_npcis_rf_op1": "int8",
-#     "num_npcis_toa_op1": "int8",
-#     "num_npcis_rf_op2": "int8",
-#     "num_npcis_toa_op2": "int8",
-#     "num_npcis_rf_op3": "int8",
-#     "num_npcis_toa_op3": "int8",
-# }
-#
-# # column names for the measurement matrix, with datatypes
-# matrix_cols = {
-#     "NPCI": "int8",
-#     "eNodeBID": "int32",
-#     "RSSI": "float64",
-#     "NSINR": "float64",
-#     "NRSRP": "float64",
-#     "NRSRQ": "float64",
-#     "ToA": "float64",
-#     "operatorID": "int8",
-#     "campaignID": "int8",
-# }
-#
-
-
-def get_config(network_type: NETWORK_TYPE):
+def get_config(network_type: NETWORK_TYPE) -> tuple[dict, dict, dict]:
     # Construct the full path to the JSON file
     config_path = os.path.join(
         os.path.dirname(__file__), "../config/matlab_parsing.json"
