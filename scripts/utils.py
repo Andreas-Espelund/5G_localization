@@ -12,10 +12,10 @@ class NB_IoT_RF_PARAM(Enum):
 
 
 class RF_PARAM_5G(Enum):
-    SSB_RSSI = "SSB_RSSI"
-    SSS_SINR = "SSS_SINR"
-    SSS_RSRP = "SSS_RSRP"
-    SSS_RSRQ = "SSS_RSRQ"
+    RSSI = "rssi"
+    SINR = "sinr"
+    RSRP = "rsrp"
+    RSRQ = "rsrq"
 
 
 class NETWORK_TYPE(Enum):
@@ -24,10 +24,10 @@ class NETWORK_TYPE(Enum):
 
 
 MISS_REF_VALUES = {
-    RF_PARAM_5G.SSB_RSSI: -160,
-    RF_PARAM_5G.SSS_SINR: -40,
-    RF_PARAM_5G.SSS_RSRQ: -40,
-    RF_PARAM_5G.SSS_RSRP: -160,
+    RF_PARAM_5G.RSSI: -160,
+    RF_PARAM_5G.SINR: -40,
+    RF_PARAM_5G.RSRQ: -40,
+    RF_PARAM_5G.RSRP: -160,
 }
 
 cluster_color_mapping = {
@@ -109,7 +109,7 @@ def filter_unique_npcis_by_operator(df, operator_choice):
     # Extract NPCIs and operator IDs from the measurements
     npcis_with_operators = np.concatenate(
         df["measurements_matrix"]
-        .apply(lambda x: x[["NPCI", "operatorID"]].values)
+        .apply(lambda x: x[["pci", "operator_id"]].values)
         .values
     )
 
@@ -160,24 +160,18 @@ def extract_unique_npcis_NB_IoT(df, operator_choice) -> np.array:
 #     return filtered_npcis.to_numpy()
 
 
-def extract_unique_npcis(df, operator_choice) -> np.array:
+def extract_unique_npcis(measurements: pd.Series) -> list:
     # Concatenate all measurements matrices into a single DataFrame
-    all_measurements = pd.concat(df["measurements_matrix"].tolist(), ignore_index=True)
+    all_measurements = pd.concat(measurements.tolist(), ignore_index=True)
 
-    # Convert the relevant columns to integers
-    all_measurements["PCI"] = all_measurements["PCI"].astype(int)
-    all_measurements["SSB_Index"] = all_measurements["SSB_Index"].astype(int)
-    all_measurements["operatorID"] = all_measurements["operatorID"].astype(int)
+    cols = ["pci", "beam_index", "nr_arfcn", "operator_id"]
+    all_measurements = all_measurements[cols]
 
-    # Drop duplicates
-    unique_npcis = all_measurements.drop_duplicates(
-        subset=["PCI", "SSB_Index", "operatorID"]
-    )
+    # Drop duplicates based on the specified columns
+    unique_npcis = all_measurements.drop_duplicates(subset=cols)
 
-    # Filter by operator choice
-    filtered_npcis = unique_npcis[unique_npcis["operatorID"].isin(operator_choice)]
-
-    return filtered_npcis.to_numpy()
+    # Convert the DataFrame to a list of tuples
+    return list(unique_npcis.itertuples(index=False, name=None))
 
 
 def compute_metrics(results: pd.DataFrame) -> pd.DataFrame:
@@ -249,6 +243,6 @@ def dataset_tp_rp_split(
     """
     np.random.seed(random_seed)
     test_mask = np.random.rand(len(df)) <= test_point_probability
-    df_tp = df[test_mask].copy().reset_index(drop=True)
-    df_rp = df[~test_mask].copy().reset_index(drop=True)
+    df_tp = df[test_mask].reset_index(drop=True)
+    df_rp = df[~test_mask].reset_index(drop=True)
     return df_tp, df_rp

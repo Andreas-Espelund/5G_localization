@@ -4,36 +4,25 @@
       "lat",
       "lng",
       "measurements_matrix",
-      "num_npcis_rf_op1",
-      "logical_rf_op1",
-      "num_npcis_toa_op1",
-      "logical_toa_op1",
-      "num_npcis_rf_op2",
-      "logical_rf_op2",
-      "num_npcis_toa_op2",
-      "logical_toa_op2",
       "campaign_id"
     ],
     "dataset_dtypes": {
       "lat": "float64",
-      "lng": "float64",
-      "num_npcis_rf_op1": "int8",
-      "num_npcis_toa_op1": "int8",
-      "num_npcis_rf_op2": "int8",
-      "num_npcis_toa_op2": "int8"
+      "lng": "float64"
     },
     "matrix_cols": {
-      "PCI": "int8",
-      "SSB_Index": "int32",
-      "SSB_RSSI": "float64",
-      "SSS_SINR": "float64",
-      "SSS_RSRP": "float64",
-      "SSS_RSRQ": "float64",
-      "PPS": "float64",
-      "ToA": "float64",
-      "ToA_secondary": "float64",
-      "operatorID": "int8",
-      "campaignID": "int8"
+      "pci": "int8",
+      "beam_index": "int8",
+      "nr_arfcn": "int64",
+      "operator_id": "int8",
+      "rssi": "float64",
+      "sinr": "float64",
+      "rsrp": "float64",
+      "rsrq": "float64",
+      "toa_pps": "float64",
+      "toa_cir": "float64",
+      "toa_cov": "float64",
+      "campaign_id": "int8"
     }
   },
   "NB-IoT": {

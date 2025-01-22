@@ -45,7 +45,12 @@ def create_point_matrix(
     for _, row in df.iterrows():
         measurements = row["measurements_matrix"]
         for _, row in measurements.iterrows():
-            npc_tuple = (row["PCI"], row["SSB_Index"], row["operatorID"])
+            npc_tuple = (
+                row["pci"],
+                row["beam_index"],
+                row["nr_arfcn"],
+                row["operator_id"],
+            )
             if npc_tuple in npc_index_map:
                 idx = npc_index_map[npc_tuple]
                 for param_idx, rf_param in enumerate(rf_params):

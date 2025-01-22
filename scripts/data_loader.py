@@ -48,15 +48,7 @@ def parse_matlab_5G(data: list) -> pd.DataFrame:
             "measurements_matrix": pd.DataFrame(
                 row[2], columns=list(matrix_cols.keys())
             ).astype(matrix_cols),
-            "num_npcis_rf_op1": flatten_nested_array(row[3]),
-            "logical_rf_op1": row[4].flatten(),
-            "num_npcis_toa_op1": flatten_nested_array(row[5]),
-            "logical_toa_op1": row[6].flatten(),
-            "num_npcis_rf_op2": flatten_nested_array(row[7]),
-            "logical_rf_op2": row[8].flatten(),
-            "num_npcis_toa_op2": flatten_nested_array(row[9]),
-            "logical_toa_op2": row[10].flatten(),
-            "campaign_id": row[11].flatten()[0],
+            "campaign_id": row[3].flatten()[0],
         }
         for row in data
     ]
@@ -152,7 +144,7 @@ def load_dataframe(filename: str, network_type: NETWORK_TYPE) -> pd.DataFrame:
         df = load_matlab_file_as_df(
             filename=matlab_filename,
             network_type=network_type,
-            dataset="dataSet_interp",  # dataSet, dataSet_interp or dataSet_smooth
+            dataset="dataSet_fixed",  # dataSet, dataSet_interp or dataSet_smooth
             usecols=["lat", "lng", "measurements_matrix", "campaign_id"],
         )
         df.to_hdf(dataframe_filename, key="df", mode="w")
