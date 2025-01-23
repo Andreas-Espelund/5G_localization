@@ -226,29 +226,12 @@ def process_test_points(
     k_max: int,
 ):
 
-    print("Processing test points...")
-
-    print(
-        f"TP DataFrame size: {df_tp.memory_usage(deep=True).sum() / (1024 * 1024):.2f} MB"
-    )
-    print(
-        f"RP DataFrame size: {df_rp.memory_usage(deep=True).sum() / (1024 * 1024):.2f} MB"
-    )
     # Create the point matrix for the reference points
     m_rfp, idx_rfp = create_point_matrix(df_rp, unique_npcis, rf_params)
-
-    print(f"Matrix RP {m_rfp.shape}")
-
     # Create the point matrix for the test points
     m_tp, idx_tp = create_point_matrix(df_tp, unique_npcis, rf_params)
-
-    print(f"Matrix TP {m_tp.shape}")
-
     # Compute the weights between the test points and reference points
     W, idx_sort = compute_weights(m_rfp, idx_rfp, m_tp, idx_tp)
-
-    print(f"Weights {W.shape}")
-
     # Do wKNN to estimate the positions and errors
     TP_est_location, k_avg_error = wknn_one(df_tp, df_rp, idx_sort, W, k_max)
 
