@@ -55,7 +55,7 @@ def single_run(nr, i, filtered_df, rf_params, unique_npcis, random_seed, n_clust
         random_seed=random_seed,
         n_clusters=n_clusters,
     )
-    return errors.mean()
+    return errors
 
 def run_experiment(
     df: pd.DataFrame,
@@ -96,7 +96,12 @@ def run_experiment(
 
     for nr in frequency_choice:
         if nr != 0:
-            filtered_df = filter_dataframe(df=df.copy(), freqs=[nr])
+            # exlcude spesific frequency
+            freqs = [element for element in frequency_choice if element != nr and element != 0]
+            filtered_df = filter_dataframe(df=df.copy(), freqs=freqs)
+
+            print(f'num items after filter {len(filtered_df)}')
+            
         else:
             filtered_df = df.copy()
 
@@ -123,13 +128,13 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 50
+    n_runs = 30
     k_wknn = 2
     rf_params = [RF_PARAM_5G.RSRQ]
     clustering_rf_params = [RF_PARAM_5G.RSRQ]
     n_clusters = 5
     operator_choice = [10]
-    selected_campaigns = list(range(1, 40))
+    selected_campaigns = list(range(1, 21))
 
     df, random_seeds = load_data(selected_campaigns)
 
