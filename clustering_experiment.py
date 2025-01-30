@@ -126,11 +126,11 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 1
+    n_runs = 50
     k_wknn = 2
     rf_params = [RF_PARAM_5G.RSRQ]
     clustering_rf_params = [RF_PARAM_5G.RSRQ]
-    cluster_range = range(5, 6)
+    cluster_range = range(0, 11)
     operator_choice = [10]
     selected_campaigns = list(range(1, 21))
 
