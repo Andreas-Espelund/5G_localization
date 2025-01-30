@@ -18,9 +18,6 @@ def filter_dataframe(
         if operators is not None:
             inner_df = inner_df[inner_df["operator_id"].isin(operators)]
 
-        if campaigns is not None:
-            inner_df = inner_df[inner_df["campaign_id"].isin(campaigns)]
-
         if beams is not None:
             inner_df = inner_df[inner_df["beam_index"].isin(beams)]
 

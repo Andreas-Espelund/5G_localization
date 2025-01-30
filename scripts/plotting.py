@@ -16,6 +16,14 @@ plt.rcParams.update(
     }
 )
 
+num_campaigns = 80
+cmap = plt.get_cmap("viridis")
+colors = [cmap(i / num_campaigns) for i in range(num_campaigns)]
+campaign_colors = {i + 1: colors[i] for i in range(num_campaigns)}
+
+
+color_maps = {"campaign_id": campaign_colors}
+
 
 def geo_plot_points(df: pd.DataFrame):
     """
@@ -92,7 +100,9 @@ def make_boxplot(
     plt.show()
 
 
-def make_lat_lng_scatterplot(df: pd.DataFrame, col: str, col_label: str, title: str):
+def make_lat_lng_scatterplot_clustering(
+    df: pd.DataFrame, col: str, col_label: str, title: str
+):
     plt.figure(figsize=(18, 14))
 
     for name, group in df.groupby(col):
@@ -139,75 +149,80 @@ def make_lat_lng_scatterplot(df: pd.DataFrame, col: str, col_label: str, title: 
     plt.show()
 
 
-def make_bar_plot(
+def make_barplot(
     df: pd.DataFrame,
-    x_col: str,
-    y_col: str,
     title: str,
     x_label: str,
     y_label: str,
-    color: str = "none",
-    edgecolor: str = "forestgreen",
-    hatch: str = "O",
-    linewidth: int = 2,
-    x_limits: (int, int) = None,
-    y_limits: (int, int) = None,
-    bar_labels: bool = False,
+    color: str = "skyblue",
+    baseline: float = None,
 ):
     """
-    Creates a generic bar plot with customizable styling.
+    Creates a bar plot of the given dataframe.
 
-    :param bar_labels: Should draw values on the bars
-    :param df: DataFrame containing the data to plot
-    :param x_col: Column name for x-axis values
-    :param y_col: Column name for y-axis values
+    :param df: DataFrame containing the data to be plotted
     :param title: Title of the plot
     :param x_label: Label for the x-axis
     :param y_label: Label for the y-axis
-    :param color: Fill color for bars
-    :param edgecolor: Edge color for bars
-    :param hatch: Hatch pattern for bars
-    :param linewidth: Line width for bar edges
-    :param x_limits: Tuple specifying x-axis limits
-    :param y_limits: Tuple specifying y-axis limits
+    :param color: Color of the bars
+    :param baseline: Optional baseline to be drawn across the plot
     """
-    plt.figure(figsize=(20, 8))
+    # Ensure the DataFrame is not empty
+    if df.empty:
+        raise ValueError("The DataFrame is empty.")
 
-    # Create a bar plot
-    bars = plt.bar(
-        df[x_col],
-        df[y_col],
-        color=color,
-        edgecolor=edgecolor,
-        hatch=hatch,
-        linewidth=linewidth,
-    )
+    # Calculate the mean of each column to plot
+    means = df.mean()
 
+    plt.figure(figsize=(20, 12))
+    bars = plt.bar(range(len(means)), means.values, color=color, tick_label=means.index)
+
+    if baseline is not None:
+        plt.axhline(
+            y=baseline,
+            color="red",
+            linestyle="-",
+            linewidth=2,
+            label="Baseline",
+        )
+        plt.legend(loc="upper right")
+
+    # Formatting the plot
+    plt.title(title)
     plt.xlabel(x_label)
     plt.ylabel(y_label)
+    plt.grid(axis="y")
+
+    # Show the plot
+    plt.show()
+
+
+def make_lat_lng_scatterplot(df: pd.DataFrame, col: str, col_label: str, title: str):
+    plt.figure(figsize=(18, 14))
+
+    # Use a discrete colormap with enough distinct colors
+    num_campaigns = df[col].nunique()
+    cmap = plt.get_cmap("tab20", num_campaigns)  # 'tab20' provides 20 distinct colors
+
+    # Map each unique value to a color
+    unique_values = df[col].unique()
+    color_map = {val: cmap(i) for i, val in enumerate(unique_values)}
+
+    for name, group in df.groupby(col):
+        print(f"color {color_maps[col][name]}")
+        plt.scatter(
+            group["lat"],
+            group["lng"],
+            color=color_map[name],
+            label=f"{col_label} {name}",
+            alpha=0.8,
+        )
+
+    ncol = 1
+    if df[col].nunique() > 9:
+        ncol = 2
+    plt.xlabel("Latitude")
+    plt.ylabel("Longitude")
     plt.title(title)
-    plt.xticks(df[x_col])  # Ensure each bar is labeled with its x-axis value
-
-    # Set x and y limits if specified
-    if x_limits:
-        plt.xlim(x_limits)
-    if y_limits:
-        plt.ylim(y_limits)
-
-    # Format y-axis to display percentage if applicable
-    plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{int(x)}%"))
-
-    # Annotate each bar with its height
-    if bar_labels:
-        for bar in bars:
-            yval = bar.get_height()
-            plt.text(
-                bar.get_x() + bar.get_width() / 2,
-                yval,
-                f"{yval:.1f}%",
-                ha="center",
-                va="bottom",
-                fontsize="small",
-            )
-
+    plt.legend(title=col_label, loc="lower left", ncol=ncol)
     plt.show()

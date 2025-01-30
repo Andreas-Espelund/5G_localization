@@ -1,3 +1,5 @@
+import json
+import os
 from enum import Enum
 
 import numpy as np
@@ -55,12 +57,33 @@ cluster_color_mapping = {
 }
 
 
+# def get_color_map(key: str) -> dict[str, str]:
+#     config_path = get_abs_filepath('')
+#     with open()
+
+
+def get_config(filename: str, key: str = None) -> dict:
+    config_path = get_abs_filepath(os.path.join("config", filename))
+    with open(config_path, "r") as f:
+        config = json.load(f)
+        if key is None:
+            return config
+        return config[key]
+
+
+def get_abs_filepath(path: str) -> str:
+    config_path = os.path.join(os.path.dirname(__file__), "../config/config.json")
+    with open(config_path, "r") as f:
+        config = json.load(f)
+        return os.path.abspath(os.path.join(config["project_root"], path))
+
+
 def params_to_str(params: list[RF_PARAM_5G]):
     return ",".join(map(lambda x: x.value, params))
 
 
-def operators_to_str(operators: np.array):
-    return ",".join(map(lambda x: str(x), operators.tolist()))
+def operators_to_str(operators: list[int]):
+    return ",".join(map(lambda x: str(x), operators))
 
 
 def make_filename_details(
@@ -103,6 +126,12 @@ def dataset_reference_test_split(
     df_tp = df[df["PointType"] == 2]
 
     return df_tp, df_rp
+
+
+def replace_nr_arfcns(df: pd.DataFrame, map: dict[int, int]):
+    df["measurements_matrix"] = df["measurements_matrix"].apply(
+        lambda matrix: matrix.assign(nr_arfcn=matrix["nr_arfcn"].replace(map))
+    )
 
 
 def filter_unique_npcis_by_operator(df, operator_choice):

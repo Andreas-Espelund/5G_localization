@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import scipy.io as sio
 
-from scripts.utils import NETWORK_TYPE
+from scripts.utils import NETWORK_TYPE, get_abs_filepath
 
 
 def get_config(network_type: NETWORK_TYPE) -> tuple[dict, dict, dict]:
@@ -132,8 +132,13 @@ def load_dataframe(filename: str, network_type: NETWORK_TYPE) -> pd.DataFrame:
     :param filename: str, the path to the .mat file.
     :return: pd.DataFrame, the data as a pandas DataFrame.
     """
-    matlab_filename = os.path.join("./data/matlab", filename)
-    dataframe_filename = os.path.join("./data/dataframe_cache", f"{filename[:-4]}.h5")
+    # matlab_filename = os.path.join("./data/matlab", filename)
+    # dataframe_filename = os.path.join("./data/dataframe_cache", f"{filename[:-4]}.h5")
+
+    matlab_filename = get_abs_filepath(os.path.join("./data/matlab", filename))
+    dataframe_filename = get_abs_filepath(
+        os.path.join("./data/dataframe_cache", f"{filename[:-4]}.h5")
+    )
 
     try:
         df = pd.read_hdf(dataframe_filename)
