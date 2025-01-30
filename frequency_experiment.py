@@ -3,6 +3,9 @@ import time
 import numpy as np
 import pandas as pd
 
+from concurrent.futures import ProcessPoolExecutor
+import os
+
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
 from scripts.data_writer import save_experiment_result
@@ -41,14 +44,26 @@ def load_data(selected_campaigns: list[int]):
 
     return df, random_seeds
 
+def single_run(nr, i, filtered_df, rf_params, unique_npcis, random_seed, n_clusters, k_wknn, n_runs):
+    print(f"🔄 Running for nr_arfcn {nr} ({i + 1}/{n_runs} runs) on PID: {os.getpid()}")
+    _, errors, _, _ = run_weighted_coverage(
+        df=filtered_df,
+        rf_params=rf_params,
+        cluster_rf_params=rf_params,
+        k_max=k_wknn,
+        unique_npcis=unique_npcis,
+        random_seed=random_seed,
+        n_clusters=n_clusters,
+    )
+    return errors.mean()
 
 def run_experiment(
     df: pd.DataFrame,
     random_seeds: np.ndarray,
     n_runs: int,
     k_wknn: int,
-    rf_params: list[RF_PARAM_5G],
-    clustering_rf_params: list[RF_PARAM_5G],
+    rf_params: list,
+    clustering_rf_params: list,
     n_clusters: int,
     operator_choice: list[int],
 ):
@@ -86,21 +101,16 @@ def run_experiment(
             filtered_df = df.copy()
 
         unique_npcis = extract_unique_npcis(filtered_df["measurements_matrix"])
-
         num_entries_dict[nr] = [len(unique_npcis)]
 
-        for i in range(n_runs):
-            print(f"\r🔄 Running for nr_arfcn {nr} ({i + 1}/{n_runs} runs)", end="")
-            _, errors, _, _ = run_weighted_coverage(
-                df=filtered_df,
-                rf_params=rf_params,
-                cluster_rf_params=rf_params,
-                k_max=k_wknn,
-                unique_npcis=unique_npcis,
-                random_seed=random_seeds[i],
-                n_clusters=n_clusters,
-            )
-            errors_dict[nr].append(errors.mean())
+        # Use ProcessPoolExecutor to parallelize the runs
+        with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
+            futures = [
+                executor.submit(single_run, nr, i, filtered_df, rf_params, unique_npcis, random_seeds[i], n_clusters, k_wknn, n_runs)
+                for i in range(n_runs)
+            ]
+            for future in futures:
+                errors_dict[nr].append(future.result())
 
         print(f"\r✅ {nr} completed                                           ")
 
@@ -118,7 +128,7 @@ def main():
     clustering_rf_params = [RF_PARAM_5G.RSRQ]
     n_clusters = 5
     operator_choice = [10]
-    selected_campaigns = list(range(1, 20))
+    selected_campaigns = list(range(1, 40))
 
     df, random_seeds = load_data(selected_campaigns)
 
@@ -136,8 +146,8 @@ def main():
     )
 
     end_time = time.time()
-
-    print(f"Total runtime was {end_time - start_time} seconds")
+    total_time = end_time - start_time
+    print(f"Total runtime was {total_time} seconds")
 
     config = {
         "wknn_k": k_wknn,
@@ -148,6 +158,7 @@ def main():
         "n_clusters": n_clusters,
         "n_runs": n_runs,
         "campaigns": selected_campaigns,
+        "runtime": total_time,
     }
 
     data = {
