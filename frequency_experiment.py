@@ -100,7 +100,7 @@ def run_experiment(
                 random_seed=random_seeds[i],
                 n_clusters=n_clusters,
             )
-            errors_dict[nr].append(errors.mean())
+            errors_dict[nr].append(errors.tolist())
 
         print(f"\r✅ {nr} completed                                           ")
 
@@ -112,7 +112,7 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 50
+    n_runs = 10
     k_wknn = 2
     rf_params = [RF_PARAM_5G.RSRQ]
     clustering_rf_params = [RF_PARAM_5G.RSRQ]
