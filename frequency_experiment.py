@@ -55,7 +55,7 @@ def single_run(nr, i, filtered_df, rf_params, unique_npcis, random_seed, n_clust
         random_seed=random_seed,
         n_clusters=n_clusters,
     )
-    return errors
+    return errors.mean()
 
 def run_experiment(
     df: pd.DataFrame,
