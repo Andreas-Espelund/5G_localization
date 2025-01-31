@@ -46,7 +46,7 @@ def single_run(
     i, filtered_df, rf_params, unique_npcis, random_seed, n_clusters, k_wknn, n_runs
 ):
     print(
-        f"🔄 Running for nr_arfcn {n_clusters} ({i + 1}/{n_runs} runs) on PID: {os.getpid()}"
+        f"🔄 Running for cluster {n_clusters} ({i + 1}/{n_runs} runs) on PID: {os.getpid()}"
     )
     _, errors, complexity, runtime = run_weighted_coverage(
         df=filtered_df,
@@ -94,7 +94,7 @@ def run_experiment(
     for n_clusters in cluster_range:
 
         # Use ProcessPoolExecutor to parallelize the runs
-        with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
+        with ProcessPoolExecutor(max_workers=25) as executor:
             futures = [
                 executor.submit(
                     single_run,
