@@ -155,8 +155,8 @@ def main():
 
     config = {
         "wknn_k": k_wknn,
-        "rf_param": rf_param[0].value,
-        "cluster_rf_param": clustering_rf_param[0].value,
+        "rf_param": rf_param.value,
+        "cluster_rf_param": clustering_rf_param.value,
         "operator_choice": operator_choice,
         "cluster_range": list(cluster_range),
         "n_runs": n_runs,
