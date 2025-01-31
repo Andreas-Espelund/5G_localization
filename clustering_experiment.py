@@ -43,15 +43,15 @@ def load_data(selected_campaigns: list[int]):
 
 
 def single_run(
-    i, filtered_df, rf_params, unique_npcis, random_seed, n_clusters, k_wknn, n_runs
+    i, filtered_df, rf_param, unique_npcis, random_seed, n_clusters, k_wknn, n_runs
 ):
     print(
         f"🔄 Running for cluster {n_clusters} ({i + 1}/{n_runs} runs) on PID: {os.getpid()}"
     )
     _, errors, complexity, runtime = run_weighted_coverage(
         df=filtered_df,
-        rf_params=rf_params,
-        cluster_rf_params=rf_params,
+        rf_param=rf_param,
+        cluster_rf_param=rf_param,
         k_max=k_wknn,
         unique_npcis=unique_npcis,
         random_seed=random_seed,
@@ -65,8 +65,8 @@ def run_experiment(
     random_seeds: np.ndarray,
     n_runs: int,
     k_wknn: int,
-    rf_params: list,
-    clustering_rf_params: list,
+    rf_param: RF_PARAM_5G,
+    clustering_rf_param: RF_PARAM_5G,
     cluster_range: range,
     operator_choice: list[int],
 ):
@@ -77,8 +77,8 @@ def run_experiment(
     🧪 Experiment setup 🧪
     🔢 k-value for wKNN = {k_wknn}
     👨‍👩‍👦‍👦 cluster range= {cluster_range}
-    🛜 RF PARAM {str(rf_params)}
-    📡 Cluster RF PARAM {str(clustering_rf_params)}
+    🛜 RF PARAM {rf_param.value}
+    📡 Cluster RF PARAM {clustering_rf_param.value}
     📶 Operator choice {operator_choice}
     🔁 Number of runs {n_runs}|
     _________________________________
@@ -100,7 +100,7 @@ def run_experiment(
                     single_run,
                     i,
                     df,
-                    rf_params,
+                    rf_param,
                     unique_npcis,
                     random_seeds[i],
                     n_clusters,
@@ -128,8 +128,8 @@ def main():
     # Parameters
     n_runs = 50
     k_wknn = 2
-    rf_params = [RF_PARAM_5G.RSRQ]
-    clustering_rf_params = [RF_PARAM_5G.RSRQ]
+    rf_param = RF_PARAM_5G.RSRQ
+    clustering_rf_param = RF_PARAM_5G.RSRQ
     cluster_range = range(0, 11)
     operator_choice = [10]
     selected_campaigns = list(range(1, 21))
@@ -143,8 +143,8 @@ def main():
         random_seeds,
         n_runs,
         k_wknn,
-        rf_params,
-        clustering_rf_params,
+        rf_param,
+        clustering_rf_param,
         cluster_range,
         operator_choice,
     )
@@ -155,8 +155,8 @@ def main():
 
     config = {
         "wknn_k": k_wknn,
-        "rf_param": rf_params[0].value,
-        "cluster_rf_param": clustering_rf_params[0].value,
+        "rf_param": rf_param[0].value,
+        "cluster_rf_param": clustering_rf_param[0].value,
         "operator_choice": operator_choice,
         "cluster_range": list(cluster_range),
         "n_runs": n_runs,

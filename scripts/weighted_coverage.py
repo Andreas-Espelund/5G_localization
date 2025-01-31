@@ -143,8 +143,8 @@ def wknn_one(
 
 def run_weighted_coverage(
     df: pd.DataFrame,
-    rf_params: list[RF_PARAM_5G],
-    cluster_rf_params: list[RF_PARAM_5G],
+    rf_param: RF_PARAM_5G,
+    cluster_rf_param: RF_PARAM_5G,
     k_max: int,
     unique_npcis: np.array(tuple[int, int, int]),
     random_seed: int,
@@ -157,19 +157,19 @@ def run_weighted_coverage(
     if not n_clusters > 0:
         start_time = time.time()
         TP_est_location, k_avg_error = process_test_points(
-            df_tp, df_rp, unique_npcis, rf_params, k_max
+            df_tp, df_rp, unique_npcis, rf_param, k_max
         )
         end_time = time.time()
         complexity = len(df_tp) * len(df_rp)
         return TP_est_location, k_avg_error, complexity, end_time - start_time
 
     rf_model = cluster_data_and_train_random_forest(
-        df_rp, n_clusters, unique_npcis, cluster_rf_params, random_seed
+        df_rp, n_clusters, unique_npcis, cluster_rf_param, random_seed
     )
 
     start_time = time.time()  # dont include model training in the online stage timing
     TP_est_location, k_avg_error, rp_factor = process_clusters(
-        df_tp, df_rp, unique_npcis, rf_params, cluster_rf_params, k_max, rf_model
+        df_tp, df_rp, unique_npcis, rf_param, cluster_rf_param, k_max, rf_model
     )
     end_time = time.time()
 
@@ -180,14 +180,13 @@ def process_clusters(
     df_tp: pd.DataFrame,
     df_rp: pd.DataFrame,
     unique_npcis: np.array(tuple[int, int, int]),
-    rf_params: list[RF_PARAM_5G],
-    cluster_rf_params: list[RF_PARAM_5G],
+    rf_param: RF_PARAM_5G,
+    cluster_rf_param: RF_PARAM_5G,
     k_max: int,
     rf_model,
 ):
     # Predict clusters for all test points at once
-    tp_features, _ = create_point_matrix(df_tp, unique_npcis, cluster_rf_params)
-    tp_features = np.squeeze(tp_features, axis=2)
+    tp_features, _ = create_point_matrix(df_tp, unique_npcis, cluster_rf_param)
 
     test_clusters = rf_model.predict(tp_features)
     # Organize test points by cluster
@@ -205,7 +204,7 @@ def process_clusters(
 
         # Process each cluster's test points
         TP_est_location, k_avg_error = process_test_points(
-            group, rps, unique_npcis, rf_params, k_max
+            group, rps, unique_npcis, rf_param, k_max
         )
 
         # Store results
@@ -222,14 +221,14 @@ def process_test_points(
     df_tp: pd.DataFrame,
     df_rp: pd.DataFrame,
     unique_npcis: np.array(tuple[int, int, int]),
-    rf_params: list[RF_PARAM_5G],
+    rf_param: RF_PARAM_5G,
     k_max: int,
 ):
 
     # Create the point matrix for the reference points
-    m_rfp, idx_rfp = create_point_matrix(df_rp, unique_npcis, rf_params)
+    m_rfp, idx_rfp = create_point_matrix(df_rp, unique_npcis, rf_param)
     # Create the point matrix for the test points
-    m_tp, idx_tp = create_point_matrix(df_tp, unique_npcis, rf_params)
+    m_tp, idx_tp = create_point_matrix(df_tp, unique_npcis, rf_param)
     # Compute the weights between the test points and reference points
     W, idx_sort = compute_weights(m_rfp, idx_rfp, m_tp, idx_tp)
     # Do wKNN to estimate the positions and errors
