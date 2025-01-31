@@ -37,7 +37,7 @@ def load_data(selected_campaigns: list[int]):
     df = filter_dataframe(
         df=df,
         operators=[10],
-        include_columns=["pci", "beam_index", "nr_arfcn", "operator_id", "rsrq"],
+        include_columns=["pci", "beam_index", "nr_arfcn", "operator_id", "rsrp"],
         campaigns=selected_campaigns,
     )
 
@@ -146,10 +146,10 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 2
+    n_runs = 50
     k_wknn = 2
-    rf_param = RF_PARAM_5G.RSRQ
-    clustering_rf_param = RF_PARAM_5G.RSRQ
+    rf_param = RF_PARAM_5G.RSRP
+    clustering_rf_param = RF_PARAM_5G.RSRP
     n_clusters = 5
     operator_choice = [10]
     selected_campaigns = list(range(1, 21))
