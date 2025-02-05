@@ -36,7 +36,11 @@ def filter_dataframe(
     df["measurements_matrix"] = df["measurements_matrix"].apply(
         lambda x: filter_inner_df(x) if isinstance(x, pd.DataFrame) else x
     )
-        # Remove rows where 'measurements_matrix' is empty
-    df = df[df["measurements_matrix"].apply(lambda x: not (isinstance(x, pd.DataFrame) and x.empty))]
+    # Remove rows where 'measurements_matrix' is empty
+    df = df[
+        df["measurements_matrix"].apply(
+            lambda x: not (isinstance(x, pd.DataFrame) and x.empty)
+        )
+    ]
 
     return df

@@ -5,6 +5,7 @@ from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 import pandas as pd
 
+from scripts.beamforming import filter_best_beams
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
 from scripts.data_writer import save_experiment_result
@@ -16,7 +17,7 @@ from scripts.utils import (
 from scripts.weighted_coverage import run_weighted_coverage
 
 
-def load_data(selected_campaigns: list[int]):
+def load_data(selected_campaigns: list[int], rf_param: RF_PARAM_5G):
     filename = "5G_data_2023.mat"
 
     # Series of random seeds for reproducability
@@ -35,8 +36,19 @@ def load_data(selected_campaigns: list[int]):
     df = filter_dataframe(
         df=df,
         operators=[10],
-        include_columns=["pci", "beam_index", "nr_arfcn", "operator_id", "sinr"],
+        include_columns=[
+            "pci",
+            "beam_index",
+            "nr_arfcn",
+            "operator_id",
+            rf_param.value,
+        ],
         campaigns=selected_campaigns,
+    )
+
+    # Beam filtering. only include the best beam for each pci
+    df["measurements_matrix"] = df["measurements_matrix"].apply(
+        lambda x: filter_best_beams(x, rf_param)
     )
 
     return df, random_seeds
@@ -130,11 +142,11 @@ def main():
     k_wknn = 2
     rf_param = RF_PARAM_5G.SINR
     clustering_rf_param = RF_PARAM_5G.SINR
-    cluster_range = range(0, 21)
+    cluster_range = range(0, 10)
     operator_choice = [10]
     selected_campaigns = list(range(1, 21))
 
-    df, random_seeds = load_data(selected_campaigns)
+    df, random_seeds = load_data(selected_campaigns, rf_param)
 
     start_time = time.time()
 
@@ -170,7 +182,7 @@ def main():
         "runtime": runtime_df,
     }
 
-    save_experiment_result("clustering_experiment", config, data)
+    save_experiment_result("beam_filter_experiment", config, data)
 
 
 if __name__ == "__main__":
