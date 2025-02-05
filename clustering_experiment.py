@@ -35,7 +35,7 @@ def load_data(selected_campaigns: list[int]):
     df = filter_dataframe(
         df=df,
         operators=[10],
-        include_columns=["pci", "beam_index", "nr_arfcn", "operator_id", "rsrq"],
+        include_columns=["pci", "beam_index", "nr_arfcn", "operator_id", "sinr"],
         campaigns=selected_campaigns,
     )
 
@@ -128,9 +128,9 @@ def main():
     # Parameters
     n_runs = 50
     k_wknn = 2
-    rf_param = RF_PARAM_5G.RSRQ
-    clustering_rf_param = RF_PARAM_5G.RSRQ
-    cluster_range = range(0, 11)
+    rf_param = RF_PARAM_5G.SINR
+    clustering_rf_param = RF_PARAM_5G.SINR
+    cluster_range = range(0, 21)
     operator_choice = [10]
     selected_campaigns = list(range(1, 21))
 
