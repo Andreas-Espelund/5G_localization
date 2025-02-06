@@ -211,7 +211,7 @@ def process_clusters(
 
         # Process each cluster's test points
         TP_est_location, k_avg_error = process_test_points(
-            group, rps, unique_npcis, rf_param, k_max
+            group, rps, unique_npcis, rf_param, k_max, False
         )
 
         # Store results
@@ -230,7 +230,7 @@ def process_test_points(
     unique_npcis: np.array(tuple[int, int, int]),
     rf_param: RF_PARAM_5G,
     k_max: int,
-    use_beam_matching: bool = False,
+    use_beam_matching: bool,
 ):
     # add beam matching
     if use_beam_matching:
