@@ -154,7 +154,7 @@ def main():
     clustering_rf_param = RF_PARAM_5G.SINR
     cluster_range = range(0, 1)
     operator_choice = [10]
-    selected_campaigns = list(range(1, 41))
+    selected_campaigns = list(range(1, 21))
     use_beam_matching = True
 
     df, random_seeds = load_data(selected_campaigns, rf_param)
