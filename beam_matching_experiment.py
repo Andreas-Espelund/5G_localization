@@ -5,7 +5,7 @@ from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 import pandas as pd
 
-from scripts.beamforming import filter_best_beams, get_best_beam
+from scripts.beamforming import get_best_beam
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
 from scripts.data_writer import save_experiment_result
@@ -45,12 +45,6 @@ def load_data(selected_campaigns: list[int], rf_param: RF_PARAM_5G):
         ],
         campaigns=selected_campaigns,
     )
-
-    # Beam filtering. only include the best beam for each pci
-    df["measurements_matrix"] = df["measurements_matrix"].apply(
-        lambda x: filter_best_beams(x, rf_param)
-    )
-
     return df, random_seeds
 
 
