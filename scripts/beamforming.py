@@ -69,3 +69,7 @@ def get_best_pci_beam_pairs(
 
     # Use the indices to select the rows with the highest 'rsrq' for each group
     return mat.loc[idx][["pci", "beam_index"]].values
+
+
+def find_matches(df_rp: pd.DataFrame, beam_pci: tuple[int, int]):
+    return df_rp[df_rp["best_beam"] == beam_pci].index
