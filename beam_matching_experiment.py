@@ -151,7 +151,7 @@ def main():
     n_runs = 50
     k_wknn = 2
     rf_param = RF_PARAM_5G.SINR
-    clustering_rf_param = RF_PARAM_5G.SINR
+    clustering_rf_param = RF_PARAM_5G.RSRQ
     cluster_range = range(0, 1)
     operator_choice = [10]
     selected_campaigns = list(range(1, 21))
