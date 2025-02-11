@@ -90,7 +90,7 @@ def run_experiment(
 
     # Use ProcessPoolExecutor to parallelize the runs
     for k in k_range:
-        with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
+        with ProcessPoolExecutor(max_workers=15) as executor:
             futures = [
                 executor.submit(
                     single_run,
@@ -122,7 +122,7 @@ def main():
     rf_param = RF_PARAM_5G.SINR
     clustering_rf_param = RF_PARAM_5G.SINR
     operator_choice = [10]
-    selected_campaigns = list(range(1, 41))
+    selected_campaigns = list(range(1, 21))
 
     df, random_seeds = load_data(selected_campaigns)
 
