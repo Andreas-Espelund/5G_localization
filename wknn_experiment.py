@@ -117,7 +117,7 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 50
+    n_runs = 30
     k_wknn = 20
     rf_param = RF_PARAM_5G.SINR
     clustering_rf_param = RF_PARAM_5G.SINR
