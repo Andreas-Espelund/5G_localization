@@ -128,7 +128,7 @@ def main():
 
     start_time = time.time()
 
-    errors_df, entries_df, frequency_choice = run_experiment(
+    errors_df = run_experiment(
         df,
         random_seeds,
         n_runs,
