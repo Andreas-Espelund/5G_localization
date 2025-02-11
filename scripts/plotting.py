@@ -243,6 +243,11 @@ def make_barplot(
     plt.ylabel(y_label)
     plt.grid(axis="y")
 
+    def thousands_formatter(x, pos):
+        return f"{x/1000:.0f}k"
+
+    plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(thousands_formatter))
+
     plt.margins(y=0.1)
     plt.tight_layout()
 

@@ -18,7 +18,7 @@ from scripts.utils import (
 from scripts.weighted_coverage import run_weighted_coverage
 
 
-def load_data(selected_campaigns: list[int]):
+def load_data(selected_campaigns: list[int], rf_param: RF_PARAM_5G):
     filename = "5G_data_2023.mat"
 
     # Series of random seeds for reproducability
@@ -37,7 +37,13 @@ def load_data(selected_campaigns: list[int]):
     df = filter_dataframe(
         df=df,
         operators=[10],
-        include_columns=["pci", "beam_index", "nr_arfcn", "operator_id", "sinr"],
+        include_columns=[
+            "pci",
+            "beam_index",
+            "nr_arfcn",
+            "operator_id",
+            rf_param.value,
+        ],
         campaigns=selected_campaigns,
     )
 
@@ -138,15 +144,15 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 3
+    n_runs = 30
     k_wknn = 2
-    rf_param = RF_PARAM_5G.SINR
-    clustering_rf_param = RF_PARAM_5G.SINR
+    rf_param = RF_PARAM_5G.RSRQ
+    clustering_rf_param = RF_PARAM_5G.RSRQ
     n_clusters = 5
     operator_choice = [10]
     selected_campaigns = list(range(1, 21))
 
-    df, random_seeds = load_data(selected_campaigns)
+    df, random_seeds = load_data(selected_campaigns, rf_param)
 
     start_time = time.time()
 
