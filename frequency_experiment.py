@@ -95,26 +95,18 @@ def run_experiment(
     )
 
     errors_dict = {nr: [] for nr in frequency_choice}  # Store the errors
-    num_entries_dict = {}
+    num_entries_dict = {nr: [] for nr in frequency_choice}  # Store the errors
 
     for nr in frequency_choice:
         if nr != 0:
-            # exlcude spesific frequency
-            freqs = [
-                element
-                for element in frequency_choice
-                if element != nr and element != 0
-            ]
-            filtered_df = filter_dataframe(df=df.copy(), freqs=freqs)
-
+            filtered_df = filter_dataframe(df=df.copy(), freqs=[nr])
             print(f"num items after filter {len(filtered_df)}")
-
         else:
             filtered_df = df.copy()
 
         unique_npcis = extract_unique_npcis(filtered_df["measurements_matrix"])
 
-        num_entries_dict[nr] = [len(unique_npcis)]
+        num_entries_dict[nr] = [filtered_df["measurements_matrix"].apply(len).sum()]
 
         # Use ProcessPoolExecutor to parallelize the runs
         with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
@@ -146,13 +138,13 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 50
+    n_runs = 3
     k_wknn = 2
     rf_param = RF_PARAM_5G.SINR
     clustering_rf_param = RF_PARAM_5G.SINR
     n_clusters = 5
     operator_choice = [10]
-    selected_campaigns = list(range(1, 41))
+    selected_campaigns = list(range(1, 21))
 
     df, random_seeds = load_data(selected_campaigns)
 

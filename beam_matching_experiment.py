@@ -148,14 +148,13 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 50
+    n_runs = 10
     k_wknn = 2
-    rf_param = RF_PARAM_5G.SINR
+    rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
-    cluster_range = range(0, 1)
+    cluster_range = range(0, 10)
     operator_choice = [10]
     selected_campaigns = list(range(1, 21))
-    use_beam_matching = True
 
     df, random_seeds = load_data(selected_campaigns, rf_param)
 
@@ -170,7 +169,22 @@ def main():
         clustering_rf_param,
         cluster_range,
         operator_choice,
-        use_beam_matching,
+        True,
+    )
+
+    df, random_seeds = load_data(selected_campaigns, rf_param)
+
+    # run without beam matching as controle
+    ctr_errors_df, ctr_complexity_df, ctr_runtime_df = run_experiment(
+        df,
+        random_seeds,
+        n_runs,
+        k_wknn,
+        rf_param,
+        clustering_rf_param,
+        cluster_range,
+        operator_choice,
+        False,
     )
 
     end_time = time.time()
@@ -185,7 +199,6 @@ def main():
         "cluster_range": list(cluster_range),
         "n_runs": n_runs,
         "campaigns": selected_campaigns,
-        "use_beam_matching": use_beam_matching,
         "runtime": total_time,
     }
 
@@ -193,6 +206,9 @@ def main():
         "errors": errors_df,
         "complexity": complexity_df,
         "runtime": runtime_df,
+        "control_errors": ctr_errors_df,
+        "control_complexity": ctr_complexity_df,
+        "control_runtime": ctr_runtime_df,
     }
 
     save_experiment_result("beam_matching_experiment", config, data)

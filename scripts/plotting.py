@@ -1,3 +1,5 @@
+from typing import Union
+
 import folium
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -54,8 +56,9 @@ def make_boxplot(
     title: str,
     x_label: str,
     y_label: str,
-    color: str = "forestgreen",
+    color: Union[str, dict] = "forestgreen",
     baseline: float = None,
+    annotate: bool = False,
 ):
     """
     Creates a boxplot of the given dataframe.
@@ -68,6 +71,8 @@ def make_boxplot(
     :param color: Color of the boxes
     """
     data_values = [df[col] for col in df.columns]
+    means = [df[col].mean() for col in df.columns]
+    num_boxes = len(df.columns)
 
     plt.figure(figsize=(20, 12))
     median_props = dict(color="black", linewidth="3")
@@ -77,8 +82,14 @@ def make_boxplot(
         tick_labels=df.columns,
         medianprops=median_props,
     )
-    for patch in plot["boxes"]:
-        patch.set_facecolor(color)
+
+    # Handle color assignment
+    if isinstance(color, dict):
+        for patch, col_name in zip(plot["boxes"], df.columns):
+            patch.set_facecolor(color.get(col_name, "forestgreen"))
+    else:
+        for patch in plot["boxes"]:
+            patch.set_facecolor(color)
 
     if baseline:
         plt.axhline(
@@ -90,11 +101,25 @@ def make_boxplot(
         )
         plt.legend(loc="upper right")
 
+    if annotate:
+        text_offset = 0.22 if num_boxes < 4 else 0.4
+
+        for i, mean in enumerate(means, 1):
+            plt.text(
+                i + text_offset,
+                mean,
+                f"\n{mean:.2f}",
+                horizontalalignment="right",
+                verticalalignment="center",
+                color="black",
+            )
+
     # formatting the plot
     plt.title(title)
     plt.grid(axis="y")
     plt.xlabel(x_label)
     plt.ylabel(y_label)
+    plt.margins(x=0.1)
 
     # Show the plot
     plt.show()
@@ -154,8 +179,9 @@ def make_barplot(
     title: str,
     x_label: str,
     y_label: str,
-    color: str = "skyblue",
+    color: Union[str, dict] = "skyblue",
     baseline: float = None,
+    annotate: bool = False,
 ):
     """
     Creates a bar plot of the given dataframe.
@@ -164,8 +190,9 @@ def make_barplot(
     :param title: Title of the plot
     :param x_label: Label for the x-axis
     :param y_label: Label for the y-axis
-    :param color: Color of the bars
+    :param color: Either a single color string for all bars or a dictionary mapping column names to colors
     :param baseline: Optional baseline to be drawn across the plot
+    :param annotate: Whether to annotate bar values
     """
     # Ensure the DataFrame is not empty
     if df.empty:
@@ -175,7 +202,30 @@ def make_barplot(
     means = df.mean()
 
     plt.figure(figsize=(20, 12))
-    bars = plt.bar(range(len(means)), means.values, color=color, tick_label=means.index)
+
+    # Handle color assignment
+    if isinstance(color, dict):
+        # Create a color list matching the order of means.index
+        colors = [color.get(col, "skyblue") for col in means.index]
+        bars = plt.bar(
+            range(len(means)), means.values, color=colors, tick_label=means.index
+        )
+    else:
+        # Use the same color for all bars if a single color is provided
+        bars = plt.bar(
+            range(len(means)), means.values, color=color, tick_label=means.index
+        )
+
+    if annotate:
+        for i, bar in enumerate(bars):
+            height = bar.get_height()
+            plt.text(
+                bar.get_x() + bar.get_width() / 2,
+                height,
+                f"{height:.0f}",
+                ha="center",
+                va="bottom",
+            )
 
     if baseline is not None:
         plt.axhline(
@@ -192,6 +242,9 @@ def make_barplot(
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.grid(axis="y")
+
+    plt.margins(y=0.1)
+    plt.tight_layout()
 
     # Show the plot
     plt.show()
