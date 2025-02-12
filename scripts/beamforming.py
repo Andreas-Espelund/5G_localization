@@ -34,7 +34,7 @@ def get_best_beam(
 
 
 def filter_best_beams(
-    mat: pd.DataFrame, rf_param: RF_PARAM_5G
+    mat: pd.DataFrame, rf_param: RF_PARAM_5G, group_by: [str] = ["pci"]
 ) -> Tuple[Optional[Tuple[int, int]], Optional[int]]:
     # Drop rows where rf_param is NaN
     mat = mat.dropna(subset=[rf_param.value])
@@ -45,7 +45,7 @@ def filter_best_beams(
         return None, None
 
     # Get the best beams by grouping only by 'pci' and 'operator_id'
-    idx = mat.groupby(["pci"])[rf_param.value].idxmax()
+    idx = mat.groupby(group_by)[rf_param.value].idxmax()
 
     # Use the indices to select the rows with the highest 'rf-value' for each group
     best_beams = mat.loc[idx]

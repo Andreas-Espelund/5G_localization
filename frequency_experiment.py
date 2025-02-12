@@ -5,6 +5,7 @@ from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 import pandas as pd
 
+from scripts.beamforming import filter_best_beams
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
 from scripts.data_writer import save_experiment_result
@@ -75,7 +76,14 @@ def run_experiment(
     clustering_rf_param: RF_PARAM_5G,
     n_clusters: int,
     operator_choice: list[int],
+    use_best_beams: bool = False,
 ):
+
+    if use_best_beams:
+        print("filtering best beams")
+        df["measurements_matrix"] = df["measurements_matrix"].apply(
+            lambda x: filter_best_beams(x, rf_param, group_by=["pci", "beam_index"])
+        )
 
     config = get_config("frequency_map.json", "10")
     nr_arfcn_frequecny_map = {int(k): int(v) for k, v in config.items()}
@@ -144,13 +152,14 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 50
+    n_runs = 30
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
     n_clusters = 5
     operator_choice = [10]
-    selected_campaigns = list(range(1, 41))
+    selected_campaigns = list(range(1, 31))
+    use_best_beams = True
 
     df, random_seeds = load_data(selected_campaigns, rf_param)
 
@@ -165,6 +174,7 @@ def main():
         clustering_rf_param,
         n_clusters,
         operator_choice,
+        use_best_beams=use_best_beams,
     )
 
     end_time = time.time()
@@ -181,6 +191,7 @@ def main():
         "n_runs": n_runs,
         "campaigns": selected_campaigns,
         "runtime": total_time,
+        "use_best_beams": use_best_beams,
     }
 
     data = {
