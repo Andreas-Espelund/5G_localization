@@ -159,7 +159,7 @@ def main():
     n_clusters = 5
     operator_choice = [10]
     selected_campaigns = list(range(1, 31))
-    use_best_beams = True
+    use_best_beams = False
 
     df, random_seeds = load_data(selected_campaigns, rf_param)
 
