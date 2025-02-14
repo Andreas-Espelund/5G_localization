@@ -19,7 +19,9 @@ from scripts.utils import (
 from scripts.weighted_coverage import run_weighted_coverage
 
 
-def load_data(selected_campaigns: list[int], rf_param: RF_PARAM_5G):
+def load_data(
+    selected_campaigns: list[int], rf_param: RF_PARAM_5G, operator_choice: list[int]
+):
     filename = "5G_data_2023.mat"
 
     # Series of random seeds for reproducability
@@ -37,7 +39,7 @@ def load_data(selected_campaigns: list[int], rf_param: RF_PARAM_5G):
     # Data filtering
     df = filter_dataframe(
         df=df,
-        operators=[10],
+        operators=operator_choice,
         include_columns=[
             "pci",
             "beam_index",
@@ -85,7 +87,7 @@ def run_experiment(
             lambda x: filter_best_beams(x, rf_param, group_by=["pci", "beam_index"])
         )
 
-    config = get_config("frequency_map.json", "10")
+    config = get_config("frequency_map.json", str(operator_choice[0]))
     nr_arfcn_frequecny_map = {int(k): int(v) for k, v in config.items()}
 
     print(nr_arfcn_frequecny_map)
@@ -157,11 +159,11 @@ def main():
     rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
     n_clusters = 5
-    operator_choice = [10]
+    operator_choice = [1]
     selected_campaigns = list(range(1, 31))
     use_best_beams = False
 
-    df, random_seeds = load_data(selected_campaigns, rf_param)
+    df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
 
     start_time = time.time()
 
