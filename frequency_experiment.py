@@ -154,13 +154,13 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 30
+    n_runs = 50
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
     n_clusters = 5
     operator_choice = [1]
-    selected_campaigns = list(range(1, 31))
+    selected_campaigns = list(range(1, 81))
     use_best_beams = False
 
     df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
