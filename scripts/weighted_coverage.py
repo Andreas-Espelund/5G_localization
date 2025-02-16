@@ -3,7 +3,7 @@ import time
 import numpy as np
 import pandas as pd
 
-from scripts.beamforming import find_matches
+from scripts.beamforming import find_matching_rps
 from scripts.data_processing import cluster_data_and_train_random_forest
 from scripts.matrix_operations import (
     create_point_matrix,
@@ -232,12 +232,6 @@ def process_test_points(
     k_max: int,
     use_beam_matching: bool,
 ):
-    # add beam matching
-    if use_beam_matching:
-        df_tp["matches"] = df_tp["best_beam"].apply(
-            lambda beam: find_matches(df_rp, beam)
-        )
-
     # Create the point matrix for the reference points
     m_rfp, idx_rfp = create_point_matrix(df_rp, unique_npcis, rf_param)
 
@@ -246,6 +240,11 @@ def process_test_points(
 
     # Compute the weights between the test points and reference points
     if use_beam_matching:
+
+        df_tp["matches"] = df_tp["best_beam"].apply(
+            lambda beam: find_matching_rps(df_rp, beam)
+        )
+
         W, idx_sort = compute_weights_with_best_rps(m_rfp, m_tp, df_tp)
     else:
         W, idx_sort = compute_weights(m_rfp, idx_rfp, m_tp, idx_tp)
