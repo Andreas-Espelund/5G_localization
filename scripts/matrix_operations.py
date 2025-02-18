@@ -59,10 +59,15 @@ def create_point_matrix(
 
 
 def compute_weights(
-    m_rfp: np.array, idx_rfp: np.array, m_tp: np.array, idx_tp: np.array
+    m_rfp: np.array,
+    idx_rfp: np.array,
+    m_tp: np.array,
+    idx_tp: np.array,
+    df_tp: pd.DataFrame = None,
 ) -> (np.array, np.array):
     """
     Computes weights for two matrices with a single reference point parameter.
+    :param df_tp:
     :param m_rfp: point matrix for the reference points (2D array)
     :param idx_rfp: valid index matrix for the reference points (1D array)
     :param m_tp: point matrix for the test points (2D array)
@@ -89,42 +94,11 @@ def compute_weights(
     min_nonzero_distance = np.min(D[D > 0])
     D[D == 0] = min_nonzero_distance / 20
 
-    # Sort distances and compute weights
-    idx_sort = np.argsort(D, axis=1)
-    D_sort = np.take_along_axis(D, idx_sort, axis=1)
-    W = 1.0 / D_sort
-
-    return W, idx_sort
-
-
-def compute_weights_with_best_rps(
-    m_rfp: np.array, m_tp: np.array, df_tp: pd.DataFrame
-) -> (np.array, np.array):
-    """
-    Computes weights for test points considering only the best reference points, maintaining original matrix dimensions.
-    :param m_rfp: point matrix for the reference points (2D array)
-    :param m_tp: point matrix for the test points (2D array)
-    :param df_tp: DataFrame containing test points and their best beams
-    :param df_rp: DataFrame containing reference points and their best beams
-    :return: Weights and sorted indices by weight
-    """
-
-    # Compute the Euclidean distances between the TPs and RPs
-    D = cdist(m_tp, m_rfp, metric="euclidean")
-
-    # Maximum float value to represent non-matching RPs
-    realmax = np.finfo(np.float64).max
-
-    # Iterate over each test point to adjust distances
-    for i, row in df_tp.iterrows():
-        matches = row["matches"]
-        # Set distances to non-matching RPs to a very large value
-        non_matching_indices = set(range(m_rfp.shape[0])) - set(matches)
-        D[i, list(non_matching_indices)] = realmax
-
-    # Replace zero distances with a small value to avoid singularities
-    min_nonzero_distance = np.min(D[D > 0])
-    D[D == 0] = min_nonzero_distance / 20
+    if df_tp is not None:
+        for i, row in df_tp.iterrows():
+            matches = row["matches"]
+            non_matching_indices = set(range(m_rfp.shape[0])) - set(matches)
+            D[i, list(non_matching_indices)] = realmax
 
     # Sort distances and compute weights
     idx_sort = np.argsort(D, axis=1)

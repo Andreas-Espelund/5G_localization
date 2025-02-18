@@ -7,7 +7,6 @@ from scripts.beamforming import find_matching_rps
 from scripts.data_processing import cluster_data_and_train_random_forest
 from scripts.matrix_operations import (
     create_point_matrix,
-    compute_weights_with_best_rps,
     compute_weights,
 )
 from scripts.utils import (
@@ -176,7 +175,14 @@ def run_weighted_coverage(
 
     start_time = time.time()  # dont include model training in the online stage timing
     TP_est_location, k_avg_error, rp_factor = process_clusters(
-        df_tp, df_rp, unique_npcis, rf_param, cluster_rf_param, k_max, rf_model
+        df_tp,
+        df_rp,
+        unique_npcis,
+        rf_param,
+        cluster_rf_param,
+        k_max,
+        rf_model,
+        use_beam_matching,
     )
     end_time = time.time()
 
@@ -191,6 +197,7 @@ def process_clusters(
     cluster_rf_param: RF_PARAM_5G,
     k_max: int,
     rf_model,
+    use_beam_matching: bool = False,
 ):
     # Predict clusters for all test points at once
     tp_features, _ = create_point_matrix(df_tp, unique_npcis, cluster_rf_param)
@@ -211,7 +218,7 @@ def process_clusters(
 
         # Process each cluster's test points
         TP_est_location, k_avg_error = process_test_points(
-            group, rps, unique_npcis, rf_param, k_max, False
+            group, rps, unique_npcis, rf_param, k_max, use_beam_matching
         )
 
         # Store results
@@ -240,12 +247,10 @@ def process_test_points(
 
     # Compute the weights between the test points and reference points
     if use_beam_matching:
-
         df_tp["matches"] = df_tp["best_beam"].apply(
             lambda beam: find_matching_rps(df_rp, beam)
         )
-
-        W, idx_sort = compute_weights_with_best_rps(m_rfp, m_tp, df_tp)
+        W, idx_sort = compute_weights(m_rfp, idx_rfp, m_tp, idx_tp, df_tp)
     else:
         W, idx_sort = compute_weights(m_rfp, idx_rfp, m_tp, idx_tp)
 
