@@ -2,7 +2,12 @@ import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
 
-from scripts.utils import get_miss_ref_value, RF_PARAM_5G
+from scripts.utils import (
+    get_miss_ref_value,
+    RF_PARAM_5G,
+    create_df_index_map,
+    apply_index_map,
+)
 
 
 def create_point_matrix(
@@ -64,6 +69,7 @@ def compute_weights(
     m_tp: np.array,
     idx_tp: np.array,
     df_tp: pd.DataFrame = None,
+    df_rp: pd.DataFrame = None,
 ) -> (np.array, np.array):
     """
     Computes weights for two matrices with a single reference point parameter.
@@ -94,9 +100,12 @@ def compute_weights(
     min_nonzero_distance = np.min(D[D > 0])
     D[D == 0] = min_nonzero_distance / 20
 
-    if df_tp is not None:
-        for i, row in df_tp.iterrows():
-            matches = row["matches"]
+    if df_tp is not None and df_rp is not None:
+        mapping = create_df_index_map(df_rp)
+        for i in range(df_tp.shape[0]):
+            row = df_tp.iloc[i, :]
+            matches = row["matches"].tolist()
+            matches = apply_index_map(matches, mapping)
             non_matching_indices = set(range(m_rfp.shape[0])) - set(matches)
             D[i, list(non_matching_indices)] = realmax
 

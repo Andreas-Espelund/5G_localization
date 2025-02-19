@@ -250,7 +250,7 @@ def process_test_points(
         df_tp["matches"] = df_tp["best_beam"].apply(
             lambda beam: find_matching_rps(df_rp, beam)
         )
-        W, idx_sort = compute_weights(m_rfp, idx_rfp, m_tp, idx_tp, df_tp)
+        W, idx_sort = compute_weights(m_rfp, idx_rfp, m_tp, idx_tp, df_tp, df_rp)
     else:
         W, idx_sort = compute_weights(m_rfp, idx_rfp, m_tp, idx_tp)
 

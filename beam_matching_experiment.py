@@ -8,6 +8,7 @@ import pandas as pd
 from scripts.beamforming import get_best_beam
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
+from scripts.data_writer import save_experiment_result
 from scripts.utils import (
     NETWORK_TYPE,
     RF_PARAM_5G,
@@ -123,13 +124,13 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 30
+    n_runs = 20
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
     operator_choice = [10]
-    selected_campaigns = list(range(1, 41))
-    n_clusters = 0
+    selected_campaigns = list(range(1, 31))
+    n_clusters = 5
     df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
 
     start_time = time.time()
@@ -180,7 +181,7 @@ def main():
         "control": control_data_df,
     }
 
-    # save_experiment_result("beam_matching_experiment", config, data)
+    save_experiment_result("beam_matching_experiment", config, data)
 
 
 if __name__ == "__main__":

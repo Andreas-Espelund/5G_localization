@@ -275,3 +275,16 @@ def dataset_tp_rp_split(
     df_tp = df[test_mask].reset_index(drop=True)
     df_rp = df[~test_mask].reset_index(drop=True)
     return df_tp, df_rp
+
+
+def create_df_index_map(df: pd.DataFrame) -> dict[int, int]:
+    """
+    Creates mapping between
+    :param df:
+    :return:
+    """
+    return dict(zip(df.index, range(len(df))))
+
+
+def apply_index_map(index: list, mapping: dict) -> list:
+    return [mapping[i] for i in index if i in mapping]
