@@ -109,6 +109,9 @@ def compute_weights(
             non_matching_indices = set(range(m_rfp.shape[0])) - set(matches)
             D[i, list(non_matching_indices)] = realmax
 
+            if i == 1:
+                print("matches", matches)
+
     # Sort distances and compute weights
     idx_sort = np.argsort(D, axis=1)
     D_sort = np.take_along_axis(D, idx_sort, axis=1)

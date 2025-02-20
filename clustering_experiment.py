@@ -17,7 +17,9 @@ from scripts.utils import (
 from scripts.weighted_coverage import run_weighted_coverage
 
 
-def load_data(selected_campaigns: list[int], rf_param: RF_PARAM_5G):
+def load_data(
+    selected_campaigns: list[int], rf_param: RF_PARAM_5G, use_beam_filter: bool = False
+) -> pd.DataFrame:
     filename = "5G_data_2023.mat"
 
     # Series of random seeds for reproducability
@@ -45,11 +47,11 @@ def load_data(selected_campaigns: list[int], rf_param: RF_PARAM_5G):
         ],
         campaigns=selected_campaigns,
     )
-
-    # Beam filtering. only include the best beam for each pci
-    df["measurements_matrix"] = df["measurements_matrix"].apply(
-        lambda x: filter_best_beams(x, rf_param)
-    )
+    if use_beam_filter:
+        # Beam filtering. only include the best beam for each pci
+        df["measurements_matrix"] = df["measurements_matrix"].apply(
+            lambda x: filter_best_beams(x, rf_param)
+        )
 
     return df, random_seeds
 
@@ -138,7 +140,7 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 50
+    n_runs = 30
     k_wknn = 2
     rf_param = RF_PARAM_5G.SINR
     clustering_rf_param = RF_PARAM_5G.SINR
@@ -146,11 +148,24 @@ def main():
     operator_choice = [10]
     selected_campaigns = list(range(1, 21))
 
-    df, random_seeds = load_data(selected_campaigns, rf_param)
-
     start_time = time.time()
 
+    df, random_seeds = load_data(selected_campaigns, rf_param, True)
+
     errors_df, complexity_df, runtime_df = run_experiment(
+        df,
+        random_seeds,
+        n_runs,
+        k_wknn,
+        rf_param,
+        clustering_rf_param,
+        cluster_range,
+        operator_choice,
+    )
+
+    df, random_seeds = load_data(selected_campaigns, rf_param, False)
+
+    control_errors_df, control_complexity_df, control_runtime_df = run_experiment(
         df,
         random_seeds,
         n_runs,
@@ -180,6 +195,9 @@ def main():
         "errors": errors_df,
         "complexity": complexity_df,
         "runtime": runtime_df,
+        "control_errors": control_errors_df,
+        "control_complexity": control_complexity_df,
+        "control_runtime": control_runtime_df,
     }
 
     save_experiment_result("beam_filter_experiment", config, data)

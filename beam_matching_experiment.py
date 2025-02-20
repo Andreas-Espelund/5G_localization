@@ -124,7 +124,7 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 20
+    n_runs = 30
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
