@@ -177,7 +177,7 @@ def main():
     }
 
     data = {
-        "data": data_df,
+        "errors": data_df,
         "control": control_data_df,
     }
 

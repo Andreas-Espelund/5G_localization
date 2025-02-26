@@ -5,7 +5,6 @@ from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 import pandas as pd
 
-from scripts.beamforming import filter_best_beams
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
 from scripts.data_writer import save_experiment_result
@@ -54,7 +53,16 @@ def load_data(
 
 
 def single_run(
-    nr, i, filtered_df, rf_param, unique_npcis, random_seed, n_clusters, k_wknn, n_runs
+    nr,
+    i,
+    filtered_df,
+    rf_param,
+    unique_npcis,
+    random_seed,
+    n_clusters,
+    k_wknn,
+    n_runs,
+    use_beam_matching,
 ):
     print(f"🔄 Running for nr_arfcn {nr} ({i + 1}/{n_runs} runs) on PID: {os.getpid()}")
     _, errors, _, _ = run_weighted_coverage(
@@ -65,6 +73,7 @@ def single_run(
         unique_npcis=unique_npcis,
         random_seed=random_seed,
         n_clusters=n_clusters,
+        use_beam_matching=use_beam_matching,
     )
     return errors.mean()
 
@@ -80,12 +89,6 @@ def run_experiment(
     operator_choice: list[int],
     use_best_beams: bool = False,
 ):
-
-    if use_best_beams:
-        print("filtering best beams")
-        df["measurements_matrix"] = df["measurements_matrix"].apply(
-            lambda x: filter_best_beams(x, rf_param, group_by=["pci", "beam_index"])
-        )
 
     config = get_config("frequency_map.json", str(operator_choice[0]))
     nr_arfcn_frequecny_map = {int(k): int(v) for k, v in config.items()}
@@ -138,6 +141,7 @@ def run_experiment(
                     n_clusters,
                     k_wknn,
                     n_runs,
+                    use_best_beams,
                 )
                 for i in range(n_runs)
             ]
@@ -154,18 +158,19 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 50
+    n_runs = 20
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
     n_clusters = 5
-    operator_choice = [1]
-    selected_campaigns = list(range(1, 81))
+    operator_choice = [10]
+    selected_campaigns = None
     use_best_beams = False
 
-    df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
-
     start_time = time.time()
+
+    # vodafone
+    df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
 
     errors_df, entries_df, frequency_choice = run_experiment(
         df,
@@ -176,7 +181,23 @@ def main():
         clustering_rf_param,
         n_clusters,
         operator_choice,
-        use_best_beams=use_best_beams,
+    )
+
+    # control
+
+    # tim
+    operator_choice = [1]
+    df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
+
+    tim_errors_df, tim_entries_df, tim_frequency_choice = run_experiment(
+        df,
+        random_seeds,
+        n_runs,
+        k_wknn,
+        rf_param,
+        clustering_rf_param,
+        n_clusters,
+        operator_choice,
     )
 
     end_time = time.time()
@@ -191,7 +212,7 @@ def main():
         "nr_arfcn_choice": frequency_choice,
         "n_clusters": n_clusters,
         "n_runs": n_runs,
-        "campaigns": selected_campaigns,
+        "campaigns": "all",
         "runtime": total_time,
         "use_best_beams": use_best_beams,
     }
@@ -199,6 +220,8 @@ def main():
     data = {
         "errors": errors_df,
         "entries": entries_df,
+        "tim_errors": tim_errors_df,
+        "tim_entries": tim_entries_df,
     }
 
     save_experiment_result("frequency_experiment", config, data)

@@ -140,13 +140,13 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 30
+    n_runs = 20
     k_wknn = 2
     rf_param = RF_PARAM_5G.SINR
     clustering_rf_param = RF_PARAM_5G.SINR
     cluster_range = range(0, 10)
     operator_choice = [10]
-    selected_campaigns = list(range(1, 21))
+    selected_campaigns = list(range(1, 15))
 
     start_time = time.time()
 

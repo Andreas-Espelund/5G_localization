@@ -13,7 +13,7 @@ def get_best_beam(mat: pd.DataFrame, rf_param: RF_PARAM_5G):
     # Check if the DataFrame is empty after dropping NaNs
     if mat.empty:
         print("No valid data available after dropping NaN values.")
-        return None, None
+        return []
 
     # Get the best beams by grouping only by 'pci' and 'operator_id'
     idx = mat.groupby(["pci", "operator_id", "nr_arfcn"])[rf_param.value].idxmax()
