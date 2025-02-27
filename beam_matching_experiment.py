@@ -62,8 +62,9 @@ def beam_matching_strategy(
         lambda x: get_best_beam(x, rf_param)
     )
 
-    df_tp, df_rp = dataset_tp_rp_split(df, 0.3, random)
     unique_npcis = extract_unique_npcis(df["measurements_matrix"])
+
+    df_tp, df_rp = dataset_tp_rp_split(df, 0.3, random)
 
     # Pre-compute reference point matrices by beam
     rp_matrices_by_beam = {}
@@ -142,7 +143,8 @@ def run_experiment(
             for i in range(n_runs)
         ]
         for future in futures:
-            data.append(future.result())
+            res = future.result()
+            data.append(res)
 
     data_df = pd.DataFrame(
         data, columns=["errors", "errors_control", "complexity", "complexity_control"]
@@ -153,10 +155,10 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 10
+    n_runs = 20
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
-    operator_choice = [30]
+    operator_choice = [10]
     selected_campaigns = list(range(1, 41))
 
     # load the data
