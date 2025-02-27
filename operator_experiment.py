@@ -11,8 +11,6 @@ from scripts.data_writer import save_experiment_result
 from scripts.utils import (
     NETWORK_TYPE,
     RF_PARAM_5G,
-    get_config,
-    replace_nr_arfcns,
     extract_unique_npcis,
 )
 from scripts.weighted_coverage import run_weighted_coverage
@@ -53,7 +51,7 @@ def load_data(
 
 
 def single_run(
-    nr,
+    op,
     i,
     filtered_df,
     rf_param,
@@ -64,7 +62,7 @@ def single_run(
     n_runs,
     use_beam_matching,
 ):
-    print(f"🔄 Running for nr_arfcn {nr} ({i + 1}/{n_runs} runs) on PID: {os.getpid()}")
+    print(f"🔄 Running for operator {op} ({i + 1}/{n_runs} runs) on PID: {os.getpid()}")
     _, errors, _, _ = run_weighted_coverage(
         df=filtered_df,
         rf_param=rf_param,
@@ -89,16 +87,6 @@ def run_experiment(
     operator_choice: list[int],
     use_best_beams: bool = False,
 ):
-
-    config = get_config("frequency_map.json", str(operator_choice[0]))
-    nr_arfcn_frequecny_map = {int(k): int(v) for k, v in config.items()}
-
-    print(nr_arfcn_frequecny_map)
-
-    frequency_choice = list(set(nr_arfcn_frequecny_map.values())) + [0]
-    print("frequency_choice", frequency_choice)
-    replace_nr_arfcns(df, nr_arfcn_frequecny_map)
-
     print(
         f"""
     Running frequency experiment
@@ -113,26 +101,27 @@ def run_experiment(
     """
     )
 
-    errors_dict = {nr: [] for nr in frequency_choice}  # Store the errors
-    num_entries_dict = {nr: [] for nr in frequency_choice}  # Store the errors
+    errors_dict = {op: [] for op in operator_choice}  # Store the errors
+    num_entries_dict = {op: [] for op in operator_choice}  # Store the errors
+    num_rps_dict = {op: [] for op in operator_choice}
 
-    for nr in frequency_choice:
-        if nr != 0:
-            filtered_df = filter_dataframe(df=df.copy(), freqs=[nr])
-            print(f"num items after filter {len(filtered_df)}")
-        else:
-            filtered_df = df.copy()
+    for operator in operator_choice:
+
+        filtered_df = filter_dataframe(df=df.copy(), operators=[operator])
 
         unique_npcis = extract_unique_npcis(filtered_df["measurements_matrix"])
 
-        num_entries_dict[nr] = [filtered_df["measurements_matrix"].apply(len).sum()]
+        num_entries_dict[operator] = [
+            filtered_df["measurements_matrix"].apply(len).sum()
+        ]
+        num_rps_dict[operator] = [len(filtered_df)]
 
         # Use ProcessPoolExecutor to parallelize the runs
         with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
             futures = [
                 executor.submit(
                     single_run,
-                    nr,
+                    operator,
                     i,
                     filtered_df,
                     rf_param,
@@ -146,14 +135,15 @@ def run_experiment(
                 for i in range(n_runs)
             ]
             for future in futures:
-                errors_dict[nr].append(future.result())
+                errors_dict[operator].append(future.result())
 
-        print(f"\r✅ {nr} completed                                           ")
+        print(f"\r✅ {operator} completed                                           ")
 
     errors_df = pd.DataFrame(errors_dict)
     entries_df = pd.DataFrame(num_entries_dict)
+    rps_dict = pd.DataFrame(num_rps_dict)
 
-    return errors_df, entries_df, frequency_choice
+    return errors_df, entries_df, rps_dict
 
 
 def main():
@@ -163,7 +153,7 @@ def main():
     rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
     n_clusters = 5
-    operator_choice = [10]
+    operator_choice = [1, 10, 50, 88]
     selected_campaigns = None
     use_best_beams = False
 
@@ -172,7 +162,7 @@ def main():
     # vodafone
     df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
 
-    errors_df, entries_df, frequency_choice = run_experiment(
+    errors_df, entries_df, rps_df = run_experiment(
         df,
         random_seeds,
         n_runs,
@@ -185,21 +175,6 @@ def main():
 
     # control
 
-    # tim
-    operator_choice = [1]
-    df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
-
-    tim_errors_df, tim_entries_df, tim_frequency_choice = run_experiment(
-        df,
-        random_seeds,
-        n_runs,
-        k_wknn,
-        rf_param,
-        clustering_rf_param,
-        n_clusters,
-        operator_choice,
-    )
-
     end_time = time.time()
     total_time = end_time - start_time
     print(f"Total runtime was {total_time} seconds")
@@ -209,7 +184,6 @@ def main():
         "rf_param": rf_param.value,
         "cluster_rf_param": clustering_rf_param.value,
         "operator_choice": operator_choice,
-        "nr_arfcn_choice": frequency_choice,
         "n_clusters": n_clusters,
         "n_runs": n_runs,
         "campaigns": "all",
@@ -220,11 +194,10 @@ def main():
     data = {
         "errors": errors_df,
         "entries": entries_df,
-        "tim_errors": tim_errors_df,
-        "tim_entries": tim_entries_df,
+        "rps": rps_df,
     }
 
-    save_experiment_result("frequency_experiment", config, data)
+    save_experiment_result("operator_experiment", config, data)
 
 
 if __name__ == "__main__":

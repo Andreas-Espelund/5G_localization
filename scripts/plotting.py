@@ -183,6 +183,9 @@ def make_barplot(
     color: Union[str, dict] = "skyblue",
     baseline: float = None,
     annotate: bool = False,
+    log_scale: bool = False,
+    y_limit: tuple[float, float] = None,
+    y_formatter=None,
 ):
     """
     Creates a bar plot of the given dataframe.
@@ -244,10 +247,17 @@ def make_barplot(
     plt.ylabel(y_label)
     plt.grid(axis="y")
 
+    if log_scale:
+        plt.yscale("log")
+
+    if y_limit:
+        plt.ylim(y_limit)
+
     def thousands_formatter(x, pos):
         return f"{x/1000:.0f}k"
 
-    plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(thousands_formatter))
+    if y_formatter:
+        plt.gca().yaxis.set_major_formatter(plt.FuncFormatter(y_formatter))
 
     plt.margins(y=0.1)
     plt.tight_layout()

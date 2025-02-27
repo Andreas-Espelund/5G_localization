@@ -1,6 +1,7 @@
 import os
 import time
 from concurrent.futures import ProcessPoolExecutor
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -9,12 +10,14 @@ from scripts.beamforming import get_best_beam
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
 from scripts.data_writer import save_experiment_result
+from scripts.matrix_operations import create_point_matrix, compute_weights
 from scripts.utils import (
     NETWORK_TYPE,
     RF_PARAM_5G,
     extract_unique_npcis,
+    dataset_tp_rp_split,
 )
-from scripts.weighted_coverage import run_weighted_coverage
+from scripts.weighted_coverage import wknn_one_tp_row
 
 
 def load_data(
@@ -51,45 +54,81 @@ def load_data(
     return df, random_seeds
 
 
-def single_run(
-    i,
-    filtered_df,
-    rf_param,
-    unique_npcis,
-    random_seed,
-    k_wknn,
-    n_runs,
-    n_clusters,
-    use_beam_matching,
-):
-    print(f"🔄 Running  ({i + 1}/{n_runs} runs) on PID: {os.getpid()}")
-
-    _, errors, complexity, runtime = run_weighted_coverage(
-        df=filtered_df,
-        rf_param=rf_param,
-        cluster_rf_param=rf_param,
-        unique_npcis=unique_npcis,
-        random_seed=random_seed,
-        k_max=k_wknn,
-        n_clusters=n_clusters,
-        use_beam_matching=use_beam_matching,
+def beam_matching_strategy(
+    df: pd.DataFrame, rf_param: RF_PARAM_5G, random: int, run: int
+) -> Tuple[float, float, Tuple[int, int], Tuple[int, int]]:
+    # get the best beam for each point
+    df["best_beam"] = df["measurements_matrix"].apply(
+        lambda x: get_best_beam(x, rf_param)
     )
-    return errors.mean(), complexity, runtime
+
+    df_tp, df_rp = dataset_tp_rp_split(df, 0.3, random)
+    unique_npcis = extract_unique_npcis(df["measurements_matrix"])
+
+    # Pre-compute reference point matrices by beam
+    rp_matrices_by_beam = {}
+    unique_beams = df_rp["best_beam"].unique()
+
+    # Pre-compute matrices for each beam group
+    for beam in unique_beams:
+        beam_rps = df_rp[df_rp["best_beam"] == beam]
+        m_rp, idx_rp = create_point_matrix(beam_rps, unique_npcis, rf_param)
+        rp_matrices_by_beam[beam] = (m_rp, idx_rp, beam_rps)
+
+    # Pre-compute the control matrix (all RPs) once
+    m_rp_control, idx_rp_control = create_point_matrix(df_rp, unique_npcis, rf_param)
+
+    data = []
+
+    for i, (_, tp_row) in enumerate(df_tp.iterrows(), 1):
+        tp = pd.DataFrame([tp_row])
+        best_beam = tp_row["best_beam"]
+
+        # Get the pre-computed matrices for this beam
+        if best_beam in rp_matrices_by_beam:
+            m_rp, idx_rp, rps = rp_matrices_by_beam[best_beam]
+        else:
+            # Handle the case where the beam isn't in reference points
+            rps = pd.DataFrame()  # Empty DataFrame
+            m_rp, idx_rp = np.array([]), np.array([])
+
+        # Create the point matrix for the test point
+        m_tp, idx_tp = create_point_matrix(tp, unique_npcis, rf_param)
+
+        # Compute weights only if we have matching RPs
+        if len(rps) > 0:
+            W, idx_sort = compute_weights(m_rp, idx_rp, m_tp, idx_tp)
+            _, errors = wknn_one_tp_row(tp, rps, idx_sort, W, 2)
+        else:
+            continue
+
+        # Compute control weights and errors
+        W_control, idx_sort_control = compute_weights(
+            m_rp_control, idx_rp_control, m_tp, idx_tp
+        )
+        _, errors_control = wknn_one_tp_row(tp, df_rp, idx_sort_control, W_control, 2)
+
+        complexity = m_rp.shape[0] * m_rp.shape[1] if len(m_rp.shape) == 2 else None
+        complexity_control = (
+            m_rp_control.shape[0] * m_rp_control.shape[1]
+            if len(m_rp_control.shape) == 2
+            else None
+        )
+        data.append([errors, errors_control, complexity, complexity_control])
+
+    print(f"RUN {run} completed\r PID: {os.getpid()}")
+    data = np.array(data)
+    return data.mean(axis=0)
 
 
 def run_experiment(
     df: pd.DataFrame,
     random_seeds: np.ndarray,
     n_runs: int,
-    k_wknn: int,
     rf_param: RF_PARAM_5G,
-    n_clusters: int,
-    use_beam_matching: bool,
 ):
 
     data = []
-
-    unique_npcis = extract_unique_npcis(df["measurements_matrix"])
 
     # find the best beams for each tp for later matching between TP and RP
     df["best_beam"] = df["measurements_matrix"].apply(
@@ -99,38 +138,28 @@ def run_experiment(
     # Use ProcessPoolExecutor to parallelize the runs
     with ProcessPoolExecutor(max_workers=25) as executor:
         futures = [
-            executor.submit(
-                single_run,
-                i,
-                df,
-                rf_param,
-                unique_npcis,
-                random_seeds[i],
-                k_wknn,
-                n_runs,
-                n_clusters,
-                use_beam_matching,
-            )
+            executor.submit(beam_matching_strategy, df, rf_param, random_seeds[i], i)
             for i in range(n_runs)
         ]
         for future in futures:
-            errors, complexity, runtime = future.result()
-            data.append((errors, complexity, runtime))
+            data.append(future.result())
 
-    data_df = pd.DataFrame(data, columns=["errors", "complexity", "runtime"])
+    data_df = pd.DataFrame(
+        data, columns=["errors", "errors_control", "complexity", "complexity_control"]
+    )
 
     return data_df
 
 
 def main():
     # Parameters
-    n_runs = 30
+    n_runs = 10
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
-    clustering_rf_param = RF_PARAM_5G.RSRQ
     operator_choice = [10]
-    selected_campaigns = list(range(1, 31))
-    n_clusters = 5
+    selected_campaigns = list(range(1, 41))
+
+    # load the data
     df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
 
     start_time = time.time()
@@ -139,23 +168,7 @@ def main():
         df,
         random_seeds,
         n_runs,
-        k_wknn,
         rf_param,
-        n_clusters,
-        True,
-    )
-
-    df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
-
-    # run without beam matching as controle
-    control_data_df = run_experiment(
-        df,
-        random_seeds,
-        n_runs,
-        k_wknn,
-        rf_param,
-        n_clusters,
-        False,
     )
 
     end_time = time.time()
@@ -163,22 +176,18 @@ def main():
 
     print(f"Total runtime was {total_time} seconds")
     print(f"errors", data_df)
-    print(f"control errors", control_data_df)
 
     config = {
         "wknn_k": k_wknn,
         "rf_param": rf_param.value,
-        "cluster_rf_param": clustering_rf_param.value,
         "operator_choice": operator_choice,
-        "n_clusters": n_clusters,
         "n_runs": n_runs,
         "campaigns": selected_campaigns,
         "runtime": total_time,
     }
 
     data = {
-        "errors": data_df,
-        "control": control_data_df,
+        "data": data_df,
     }
 
     save_experiment_result("beam_matching_experiment", config, data)

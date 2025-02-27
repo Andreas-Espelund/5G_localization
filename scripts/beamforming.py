@@ -25,7 +25,7 @@ def get_best_beam(mat: pd.DataFrame, rf_param: RF_PARAM_5G):
     best_index = best_beams[rf_param.value].idxmax()
     best = best_beams.loc[best_index]
 
-    return best[["pci", "operator_id", "nr_arfcn", "beam_index"]].values
+    return best["pci"], best["operator_id"], best["nr_arfcn"], best["beam_index"]
 
 
 def filter_best_beams(
@@ -49,5 +49,6 @@ def filter_best_beams(
 
 
 def find_matching_rps(df_rp: pd.DataFrame, best_beam: np.array):
-    mask = df_rp["best_beam"].apply(lambda x: all(x == best_beam))
+    # Convert comparison to check if arrays are equal element-wise
+    mask = df_rp["best_beam"].apply(lambda x: x == best_beam)
     return df_rp[mask].index
