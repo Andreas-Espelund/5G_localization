@@ -136,8 +136,9 @@ def run_experiment(
         lambda x: get_best_beam(x, rf_param)
     )
 
+    num_processors = os.cpu_count()
     # Use ProcessPoolExecutor to parallelize the runs
-    with ProcessPoolExecutor(max_workers=25) as executor:
+    with ProcessPoolExecutor(max_workers=num_processors) as executor:
         futures = [
             executor.submit(beam_matching_strategy, df, rf_param, random_seeds[i], i)
             for i in range(n_runs)
@@ -162,10 +163,13 @@ def main():
     selected_campaigns = list(range(1, 41))
 
     # load the data
+
+    print("LOADING DATA")
     df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
 
     start_time = time.time()
 
+    print(f"RUNNING EXPERIMENT")
     data_df = run_experiment(
         df,
         random_seeds,
