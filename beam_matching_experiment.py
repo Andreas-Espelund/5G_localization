@@ -156,7 +156,7 @@ def main():
     n_runs = 10
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
-    operator_choice = [10]
+    operator_choice = [30]
     selected_campaigns = list(range(1, 41))
 
     # load the data
