@@ -9,10 +9,11 @@ import pandas as pd
 from scripts.beamforming import (
     get_best_beam,
     get_beam_sidelobe_pcis,
-    filter_best_beam,
+    filter_best_beams,
 )
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
+from scripts.data_writer import save_experiment_result
 from scripts.matrix_operations import create_point_matrix, compute_weights
 from scripts.utils import (
     NETWORK_TYPE,
@@ -64,6 +65,7 @@ def beam_matching_strategy(
     run: int,
     use_best_beam: bool,
     use_sidelobes: bool,
+    n_best_pcis: int,
 ) -> Tuple[float, float, Tuple[int, int], Tuple[int, int]]:
     # get the best beam for each point
     df["best_beam"] = df["measurements_matrix"].apply(
@@ -98,13 +100,23 @@ def beam_matching_strategy(
             beam_rps_filtered["measurements_matrix"] = beam_rps[
                 "measurements_matrix"
             ].apply(
-                lambda x: filter_best_beam(x, rf_param, use_sidelobes=use_sidelobes)
+                lambda x: (
+                    filter_best_beams(
+                        x,
+                        rf_param,
+                        n_best_pcis=n_best_pcis,
+                        use_sidelobes=use_sidelobes,
+                    )
+                )
             )
+            if n_best_pcis > 1:
+                pcis = extract_unique_npcis(beam_rps_filtered["measurements_matrix"])
+
             m_rp, idx_rp = create_point_matrix(beam_rps_filtered, pcis, rf_param)
         else:
             m_rp, idx_rp = create_point_matrix(beam_rps, pcis, rf_param)
 
-        rp_matrices_by_beam[beam] = (m_rp, idx_rp, beam_rps)
+        rp_matrices_by_beam[beam] = (m_rp, idx_rp, beam_rps, pcis)
 
     data = []
 
@@ -112,18 +124,11 @@ def beam_matching_strategy(
         tp = pd.DataFrame([tp_row])
         best_beam = tp_row["best_beam"]
 
-        pcis_tp = unique_npcis
-        if use_best_beam:
-            if use_sidelobes:
-                pcis_tp = get_beam_sidelobe_pcis(best_beam)
-            else:
-                pcis_tp = [best_beam]
-
         # Get the pre-computed matrices for this beam
         if best_beam in rp_matrices_by_beam:
-            m_rp, idx_rp, rps = rp_matrices_by_beam[best_beam]
+            m_rp, idx_rp, rps, pcis_tp = rp_matrices_by_beam[best_beam]
+
         else:
-            print("No matches")
             continue
 
         # Create the point matrix for the test point
@@ -150,6 +155,7 @@ def run_experiment(
     rf_param: RF_PARAM_5G,
     use_best_beam: bool,
     use_sidelobes: bool,
+    n_best_pcis: int,
 ):
 
     data = []
@@ -171,6 +177,7 @@ def run_experiment(
                 i,
                 use_best_beam,
                 use_sidelobes,
+                n_best_pcis,
             )
             for i in range(n_runs)
         ]
@@ -191,11 +198,11 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 1
+    n_runs = 30
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     operator_choice = [10]
-    selected_campaigns = list(range(1, 21))
+    selected_campaigns = list(range(1, 41))
 
     # load the data
 
@@ -208,18 +215,30 @@ def main():
             "label": "baseline",
             "use_best_beam": False,
             "use_sidelobes": False,
-        },
-        {
-            "label": "best_beam",
-            "use_best_beam": True,
-            "use_sidelobes": False,
-        },
-        {
-            "label": "best_beam_sidelobes",
-            "use_best_beam": True,
-            "use_sidelobes": True,
-        },
+            "n_best_pcis": 1,
+        }
     ]
+
+    pci_range = range(1, 8)
+    for i in pci_range:
+        config.append(
+            {
+                "label": f"best_beam_multi_{i}",
+                "use_best_beam": True,
+                "use_sidelobes": False,
+                "n_best_pcis": i,
+            }
+        )
+
+    for i in pci_range:
+        config.append(
+            {
+                "label": f"best_beam_multi_{i}_sidelobes",
+                "use_best_beam": True,
+                "use_sidelobes": True,
+                "n_best_pcis": i,
+            }
+        )
 
     results = {}
     for conf in config:
@@ -233,8 +252,12 @@ def main():
             rf_param,
             use_best_beam=conf["use_best_beam"],
             use_sidelobes=conf["use_sidelobes"],
+            n_best_pcis=conf["n_best_pcis"],
         )
-        results[conf["label"]] = data_df
+        results[conf["label"]] = {
+            **conf,
+            "data": data_df,
+        }
 
     end_time = time.time()
     total_time = end_time - start_time
@@ -250,14 +273,37 @@ def main():
         "runtime": total_time,
     }
 
-    data = results
+    res = []
+    for k, v in results.items():
+        label = k
+        d = v["data"]
+        res.append(
+            (
+                label,
+                v["use_best_beam"],
+                v["use_sidelobes"],
+                v["n_best_pcis"],
+                d["errors"],
+                d["complexity"],
+            )
+        )
 
-    print(data)
+    cols = [
+        "config",
+        "use_best_beam",
+        "use_sidelobes",
+        "n_best_pcis",
+        "errors",
+        "complexity",
+    ]
 
-    for k, v in data.items():
-        print(f"[{k}]\tError:{v['errors'].mean()}\tComplexity:{v['complexity'].mean()}")
+    df = pd.DataFrame(res, columns=cols)
 
-    # save_experiment_result("beam_matching_experiment", config, data)
+    print(df)
+
+    data = {"data": res}
+
+    save_experiment_result("beam_matching_experiment", config, data)
 
 
 if __name__ == "__main__":

@@ -419,6 +419,7 @@ def make_barplot_double(
     color: Union[str, dict] = "forestgreen",
     baseline: float = None,
     annotate: bool = False,
+    logscale: bool = False,
 ):
     """
     Creates a bar plot with paired bars for control and experimental data.
@@ -508,6 +509,9 @@ def make_barplot_double(
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.grid(axis="y")
+
+    if logscale:
+        plt.yscale("log")
 
     # Set x-ticks at the center of each pair
     plt.xticks(positions + bar_width / 2, df.columns)

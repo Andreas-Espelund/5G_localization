@@ -98,7 +98,8 @@ def compute_weights(
     D[:, dummy_rfps] = realmax
 
     # Replace zero distances with a small value to avoid singularities
-    min_nonzero_distance = np.min(D[D > 0])
+    min_nonzero_distance = np.min(D[D > 0]) if np.any(D > 0) else 0.1
+
     D[D == 0] = min_nonzero_distance / 20
 
     if df_tp is not None and df_rp is not None:

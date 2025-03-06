@@ -30,7 +30,7 @@ def filter_best_beams(
     mat: pd.DataFrame,
     rf_param: RF_PARAM_5G,
     group_by: [str] = ["pci"],
-    threshold: float = None,
+    n_best_pcis: int = 1,
     use_sidelobes: bool = False,
 ) -> pd.DataFrame:
     # Drop rows where rf_param is NaN
@@ -43,11 +43,8 @@ def filter_best_beams(
 
     # Get the best beams by grouping by the specified columns
     idx = mat.groupby(group_by)[rf_param.value].idxmax()
-    beams = mat.loc[idx]
-
-    if threshold:
-        max_val = mat[rf_param.value].max()
-        beams = beams[beams[rf_param.value] >= max_val * threshold]
+    beams = mat.loc[idx].sort_values(by=[rf_param.value], ascending=False)
+    beams = beams.iloc[0 : min(n_best_pcis, len(beams))]
 
     if not use_sidelobes:
         return beams
