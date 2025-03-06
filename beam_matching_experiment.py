@@ -6,10 +6,13 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 
-from scripts.beamforming import get_best_beam
+from scripts.beamforming import (
+    get_best_beam,
+    get_beam_sidelobe_pcis,
+    filter_best_beam,
+)
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
-from scripts.data_writer import save_experiment_result
 from scripts.matrix_operations import create_point_matrix, compute_weights
 from scripts.utils import (
     NETWORK_TYPE,
@@ -55,15 +58,23 @@ def load_data(
 
 
 def beam_matching_strategy(
-    df: pd.DataFrame, rf_param: RF_PARAM_5G, random: int, run: int
+    df: pd.DataFrame,
+    rf_param: RF_PARAM_5G,
+    random: int,
+    run: int,
+    use_best_beam: bool,
+    use_sidelobes: bool,
 ) -> Tuple[float, float, Tuple[int, int], Tuple[int, int]]:
     # get the best beam for each point
     df["best_beam"] = df["measurements_matrix"].apply(
         lambda x: get_best_beam(x, rf_param)
     )
-
+    print(
+        f"RUNNING STRATEGY -> SIDELOBES: {use_sidelobes} -> BEST BEAM {use_best_beam}"
+    )
     unique_npcis = extract_unique_npcis(df["measurements_matrix"])
 
+    # Pre-compute the control matrix (all RPs) once
     df_tp, df_rp = dataset_tp_rp_split(df, 0.3, random)
 
     # Pre-compute reference point matrices by beam
@@ -73,11 +84,27 @@ def beam_matching_strategy(
     # Pre-compute matrices for each beam group
     for beam in unique_beams:
         beam_rps = df_rp[df_rp["best_beam"] == beam]
-        m_rp, idx_rp = create_point_matrix(beam_rps, unique_npcis, rf_param)
-        rp_matrices_by_beam[beam] = (m_rp, idx_rp, beam_rps)
 
-    # Pre-compute the control matrix (all RPs) once
-    m_rp_control, idx_rp_control = create_point_matrix(df_rp, unique_npcis, rf_param)
+        pcis = unique_npcis
+        if use_best_beam:
+            if use_sidelobes:
+                pcis = get_beam_sidelobe_pcis(beam)
+            else:
+                pcis = [beam]
+
+        if use_best_beam:
+            beam_rps_filtered = beam_rps.copy()
+
+            beam_rps_filtered["measurements_matrix"] = beam_rps[
+                "measurements_matrix"
+            ].apply(
+                lambda x: filter_best_beam(x, rf_param, use_sidelobes=use_sidelobes)
+            )
+            m_rp, idx_rp = create_point_matrix(beam_rps_filtered, pcis, rf_param)
+        else:
+            m_rp, idx_rp = create_point_matrix(beam_rps, pcis, rf_param)
+
+        rp_matrices_by_beam[beam] = (m_rp, idx_rp, beam_rps)
 
     data = []
 
@@ -85,39 +112,33 @@ def beam_matching_strategy(
         tp = pd.DataFrame([tp_row])
         best_beam = tp_row["best_beam"]
 
+        pcis_tp = unique_npcis
+        if use_best_beam:
+            if use_sidelobes:
+                pcis_tp = get_beam_sidelobe_pcis(best_beam)
+            else:
+                pcis_tp = [best_beam]
+
         # Get the pre-computed matrices for this beam
         if best_beam in rp_matrices_by_beam:
             m_rp, idx_rp, rps = rp_matrices_by_beam[best_beam]
         else:
-            # Handle the case where the beam isn't in reference points
-            rps = pd.DataFrame()  # Empty DataFrame
-            m_rp, idx_rp = np.array([]), np.array([])
-
-        # Create the point matrix for the test point
-        m_tp, idx_tp = create_point_matrix(tp, unique_npcis, rf_param)
-
-        # Compute weights only if we have matching RPs
-        if len(rps) > 0:
-            W, idx_sort = compute_weights(m_rp, idx_rp, m_tp, idx_tp)
-            _, errors = wknn_one_tp_row(tp, rps, idx_sort, W, 2)
-        else:
+            print("No matches")
             continue
 
-        # Compute control weights and errors
-        W_control, idx_sort_control = compute_weights(
-            m_rp_control, idx_rp_control, m_tp, idx_tp
-        )
-        _, errors_control = wknn_one_tp_row(tp, df_rp, idx_sort_control, W_control, 2)
+        # Create the point matrix for the test point
+        m_tp, idx_tp = create_point_matrix(tp, pcis_tp, rf_param)
+
+        # Compute weights only if we have matching RPs
+
+        W, idx_sort = compute_weights(m_rp, idx_rp, m_tp, idx_tp)
+        _, errors = wknn_one_tp_row(tp, rps, idx_sort, W, 2)
 
         complexity = m_rp.shape[0] * m_rp.shape[1] if len(m_rp.shape) == 2 else None
-        complexity_control = (
-            m_rp_control.shape[0] * m_rp_control.shape[1]
-            if len(m_rp_control.shape) == 2
-            else None
-        )
-        data.append([errors, errors_control, complexity, complexity_control])
 
-    print(f"RUN {run} completed\r PID: {os.getpid()}")
+        data.append([errors, complexity])
+
+    print(f"RUN {run} completed \t PID: {os.getpid()}")
     data = np.array(data)
     return data.mean(axis=0)
 
@@ -127,6 +148,8 @@ def run_experiment(
     random_seeds: np.ndarray,
     n_runs: int,
     rf_param: RF_PARAM_5G,
+    use_best_beam: bool,
+    use_sidelobes: bool,
 ):
 
     data = []
@@ -140,7 +163,15 @@ def run_experiment(
     # Use ProcessPoolExecutor to parallelize the runs
     with ProcessPoolExecutor(max_workers=num_processors) as executor:
         futures = [
-            executor.submit(beam_matching_strategy, df, rf_param, random_seeds[i], i)
+            executor.submit(
+                beam_matching_strategy,
+                df,
+                rf_param,
+                random_seeds[i],
+                i,
+                use_best_beam,
+                use_sidelobes,
+            )
             for i in range(n_runs)
         ]
         for future in futures:
@@ -148,7 +179,11 @@ def run_experiment(
             data.append(res)
 
     data_df = pd.DataFrame(
-        data, columns=["errors", "errors_control", "complexity", "complexity_control"]
+        data,
+        columns=[
+            "errors",
+            "complexity",
+        ],
     )
 
     return data_df
@@ -156,32 +191,55 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 20
+    n_runs = 1
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     operator_choice = [10]
-    selected_campaigns = list(range(1, 41))
+    selected_campaigns = list(range(1, 21))
 
     # load the data
 
-    print("LOADING DATA")
     df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
 
     start_time = time.time()
 
-    print(f"RUNNING EXPERIMENT")
-    data_df = run_experiment(
-        df,
-        random_seeds,
-        n_runs,
-        rf_param,
-    )
+    config = [
+        {
+            "label": "baseline",
+            "use_best_beam": False,
+            "use_sidelobes": False,
+        },
+        {
+            "label": "best_beam",
+            "use_best_beam": True,
+            "use_sidelobes": False,
+        },
+        {
+            "label": "best_beam_sidelobes",
+            "use_best_beam": True,
+            "use_sidelobes": True,
+        },
+    ]
+
+    results = {}
+    for conf in config:
+        print(f"RUN {conf['label']}")
+
+        # baseline measurement
+        data_df = run_experiment(
+            df.copy(deep=True),
+            random_seeds,
+            n_runs,
+            rf_param,
+            use_best_beam=conf["use_best_beam"],
+            use_sidelobes=conf["use_sidelobes"],
+        )
+        results[conf["label"]] = data_df
 
     end_time = time.time()
     total_time = end_time - start_time
 
     print(f"Total runtime was {total_time} seconds")
-    print(f"errors", data_df)
 
     config = {
         "wknn_k": k_wknn,
@@ -192,11 +250,14 @@ def main():
         "runtime": total_time,
     }
 
-    data = {
-        "data": data_df,
-    }
+    data = results
 
-    save_experiment_result("beam_matching_experiment", config, data)
+    print(data)
+
+    for k, v in data.items():
+        print(f"[{k}]\tError:{v['errors'].mean()}\tComplexity:{v['complexity'].mean()}")
+
+    # save_experiment_result("beam_matching_experiment", config, data)
 
 
 if __name__ == "__main__":

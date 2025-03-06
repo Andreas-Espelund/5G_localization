@@ -12,8 +12,6 @@ def cluster_data_and_train_random_forest(
     rf_param: RF_PARAM_5G,
     random_seed: int,
 ):
-    from scripts.matrix_operations import create_point_matrix
-
     #  === Cluster the data points using KMeans ===
     coords = df[["lat", "lng"]].values
     kmeans = KMeans(n_clusters=n_clusters, random_state=random_seed)
@@ -21,16 +19,59 @@ def cluster_data_and_train_random_forest(
 
     #  === Train Random Forest Classifier ===
 
-    # Prepare params and features
-    n_estimators_rf = 100
+    rf_model = train_random_forest(
+        df=df,
+        unique_npcis=unique_npcis,
+        rf_param=rf_param,
+        random_seed=random_seed * 42,
+        n_estimators=100,
+    )
+
+    return rf_model
+
+
+def cluster_data_and_train_kmeans_rf_param(
+    df: pd.DataFrame,
+    n_clusters: int,
+    unique_npcis,
+    rf_param: RF_PARAM_5G,
+    random_seed: int,
+):
+    from scripts.matrix_operations import create_point_matrix
+
+    df_features, _ = create_point_matrix(df, unique_npcis, rf_param)
+
+    kmeans = KMeans(n_clusters=n_clusters, random_state=random_seed)
+
+    df["cluster"] = kmeans.fit_predict(df_features)
+
+    rf_model = train_random_forest(
+        df=df,
+        unique_npcis=unique_npcis,
+        rf_param=rf_param,
+        random_seed=random_seed * 42,
+        n_estimators=100,
+    )
+
+    return rf_model
+
+
+def train_random_forest(
+    df: pd.DataFrame,
+    unique_npcis,
+    rf_param: RF_PARAM_5G,
+    random_seed: int,
+    n_estimators: int = 100,
+):
+    from scripts.matrix_operations import create_point_matrix
+
     df_features, _ = create_point_matrix(df, unique_npcis, rf_param)
 
     X = df_features
     y = df["cluster"]
 
-    # Train and fit the model
     rf_model = RandomForestClassifier(
-        n_estimators=n_estimators_rf, random_state=random_seed * 42
+        n_estimators=n_estimators, random_state=random_seed * 42
     )
     rf_model.fit(X, y)
 

@@ -11,7 +11,7 @@ from scripts.utils import (
 
 
 def create_point_matrix(
-    df: pd.DataFrame, unique_npcis: np.array, rf_param: RF_PARAM_5G
+    df: pd.DataFrame, unique_npcis: np.array, rf_param: RF_PARAM_5G, best_beam=None
 ):
     """
     Creates and populates a point matrix and valid index matrix for the test or reference points.
@@ -52,6 +52,7 @@ def create_point_matrix(
                 measurement_row["nr_arfcn"],
                 measurement_row["operator_id"],
             )
+
             if npc_tuple in npc_index_map:
                 idx = npc_index_map[npc_tuple]
                 rf_value = measurement_row[rf_param.value]
