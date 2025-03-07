@@ -198,7 +198,7 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 30
+    n_runs = 20
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     operator_choice = [10]
@@ -219,7 +219,7 @@ def main():
         }
     ]
 
-    pci_range = range(1, 8)
+    pci_range = range(1, 15)
     for i in pci_range:
         config.append(
             {
@@ -283,8 +283,8 @@ def main():
                 v["use_best_beam"],
                 v["use_sidelobes"],
                 v["n_best_pcis"],
-                d["errors"],
-                d["complexity"],
+                d["errors"].tolist(),
+                d["complexity"].tolist(),
             )
         )
 
@@ -301,7 +301,7 @@ def main():
 
     print(df)
 
-    data = {"data": res}
+    data = {"data": df}
 
     save_experiment_result("beam_matching_experiment", config, data)
 
