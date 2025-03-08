@@ -5,6 +5,7 @@ from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 import pandas as pd
 
+from scripts.beamforming import filter_best_beams
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
 from scripts.data_writer import save_experiment_result
@@ -119,6 +120,16 @@ def run_experiment(
         filtered_df = filter_dataframe(
             df=df.copy(), operators=[operator], freqs=nr_arfcns
         )
+
+        # filter the measurement matricies
+        filtered_df.loc[:, "measurements_matrix"] = filtered_df.loc[
+            :, "measurements_matrix"
+        ].apply(
+            lambda x: filter_best_beams(
+                x, rf_param=rf_param, n_best_pcis=5, use_sidelobes=False
+            )
+        )
+
         unique_npcis = extract_unique_npcis(filtered_df["measurements_matrix"])
 
         num_entries_dict[operator] = [
@@ -164,7 +175,7 @@ def main():
     clustering_rf_param = RF_PARAM_5G.RSRQ
     n_clusters = 0
     operator_choice = [1, 10, 50, 88]
-    selected_campaigns = list(range(1, 41))
+    selected_campaigns = list(range(1, 31))
     use_best_beams = False
 
     start_time = time.time()

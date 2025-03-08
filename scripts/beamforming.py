@@ -5,6 +5,17 @@ from scripts.matrix_operations import create_point_matrix, compute_weights
 from scripts.utils import RF_PARAM_5G, extract_unique_npcis
 
 
+def get_single_best_beam(matrix: pd.DataFrame, rf_param: RF_PARAM_5G) -> tuple:
+    matrix = matrix.dropna(subset=[rf_param.value])
+    if matrix.empty:
+        return []
+
+    idx = matrix[rf_param.value].idxmax()
+    best = matrix.loc[idx]
+
+    return best["pci"], best["beam_index"], best["nr_arfcn"], best["operator_id"]
+
+
 def get_best_beam(mat: pd.DataFrame, rf_param: RF_PARAM_5G):
     # Drop rows where rf_param is NaN
     mat = mat.dropna(subset=[rf_param.value])

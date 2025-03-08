@@ -11,7 +11,7 @@ from scripts.utils import (
 
 
 def create_point_matrix(
-    df: pd.DataFrame, unique_npcis: np.array, rf_param: RF_PARAM_5G, best_beam=None
+    df: pd.DataFrame, unique_npcis: np.array, rf_param: RF_PARAM_5G
 ):
     """
     Creates and populates a point matrix and valid index matrix for the test or reference points.
