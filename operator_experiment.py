@@ -105,10 +105,20 @@ def run_experiment(
     num_entries_dict = {op: [] for op in operator_choice}  # Store the errors
     num_rps_dict = {op: [] for op in operator_choice}
 
+    highest_frequencies = {
+        1: [648768],
+        10: [643296, 643295],
+        50: [641663, 641664],
+        88: [638015, 638016],
+    }
+
     for operator in operator_choice:
 
-        filtered_df = filter_dataframe(df=df.copy(), operators=[operator])
+        nr_arfcns = highest_frequencies[operator]
 
+        filtered_df = filter_dataframe(
+            df=df.copy(), operators=[operator], freqs=nr_arfcns
+        )
         unique_npcis = extract_unique_npcis(filtered_df["measurements_matrix"])
 
         num_entries_dict[operator] = [
@@ -148,13 +158,13 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 10
+    n_runs = 20
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
-    n_clusters = 5
+    n_clusters = 0
     operator_choice = [1, 10, 50, 88]
-    selected_campaigns = None
+    selected_campaigns = list(range(1, 41))
     use_best_beams = False
 
     start_time = time.time()

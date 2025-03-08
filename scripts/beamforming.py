@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from scripts.utils import RF_PARAM_5G
+from scripts.matrix_operations import create_point_matrix, compute_weights
+from scripts.utils import RF_PARAM_5G, extract_unique_npcis
 
 
 def get_best_beam(mat: pd.DataFrame, rf_param: RF_PARAM_5G):
@@ -120,3 +121,77 @@ def get_all_beams_for_pci(matrix: pd.DataFrame, beam: pd.Series) -> pd.DataFrame
         & (matrix["operator_id"] == beam["operator_id"])
         & (matrix["nr_arfcn"] == beam["nr_arfcn"])
     ]
+
+
+def compute_best_beam_rp_matricies(
+    df_rp: pd.DataFrame,
+    pcis: list[tuple],
+    rf_param: RF_PARAM_5G,
+    n_best_pcis: int = 0,
+    use_sidelobes: bool = False,
+) -> dict[str, tuple]:
+    unique_beams = df_rp["best_beam"].unique()
+
+    rp_matrices_by_beam = {}
+
+    for beam in unique_beams:
+        beam_rps = df_rp[df_rp["best_beam"] == beam]
+        if n_best_pcis > 0:
+            beam_rps = beam_rps.copy()
+
+            beam_rps["measurements_matrix"] = beam_rps["measurements_matrix"].apply(
+                lambda x: filter_best_beams(
+                    x, rf_param, n_best_pcis=n_best_pcis, use_sidelobes=use_sidelobes
+                )
+            )
+            pcis = extract_unique_npcis(beam_rps["measurements_matrix"])
+
+        m_rp, idx_rp = create_point_matrix(beam_rps, pcis, rf_param)
+
+        rp_matrices_by_beam[beam] = (m_rp, idx_rp, beam_rps, pcis)
+
+    return rp_matrices_by_beam
+
+
+def process_tps_beam_matching(
+    df_tp: pd.DataFrame,
+    df_rp: pd.DataFrame,
+    unique_pcis: list[tuple],
+    rf_param: RF_PARAM_5G,
+) -> pd.DataFrame:
+    from scripts.weighted_coverage import wknn_one_tp_row
+
+    n_best_pcis = 3
+    use_sidelobes = True
+
+    rp_matrices_by_beam = compute_best_beam_rp_matricies(
+        df_rp=df_rp,
+        pcis=unique_pcis,
+        rf_param=RF_PARAM_5G,
+        n_best_pcis=n_best_pcis,
+        use_sidelobes=use_sidelobes,
+    )
+
+    results = []
+
+    for i, (_, tp_row) in enumerate(df_tp.iterrows(), 1):
+        tp = pd.DataFrame([tp_row])
+        best_beam = tp_row["best_beam"]
+
+        if best_beam not in rp_matrices_by_beam:
+            continue
+
+        # point matrix for the RPs
+        m_rp, idx_rp, rps, pcis_tp = rp_matrices_by_beam[best_beam]
+
+        # Create the point matrix for the test point
+        m_tp, idx_tp = create_point_matrix(tp, pcis_tp, rf_param)
+
+        W, idx_sort = compute_weights(m_rp, idx_rp, m_tp, idx_tp)
+        _, errors = wknn_one_tp_row(tp, rps, idx_sort, W, 2)
+
+        complexity = m_rp.shape[0] * m_rp.shape[1]
+        results.append([errors, complexity])
+
+    results = np.array(results)
+    return results.mean(axis=0)
