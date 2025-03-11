@@ -132,13 +132,13 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 20
+    n_runs = 5
     k_wknn = 2
     rf_param = RF_PARAM_5G.SINR
     clustering_rf_param = RF_PARAM_5G.SINR
     cluster_range = range(1, 10)
     operator_choice = [10]
-    selected_campaigns = list(range(1, 41))
+    selected_campaigns = list(range(1, 21))
 
     selected_params = [
         RF_PARAM_5G.DUMMY,
