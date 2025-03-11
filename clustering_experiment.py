@@ -136,16 +136,12 @@ def main():
     k_wknn = 2
     rf_param = RF_PARAM_5G.SINR
     clustering_rf_param = RF_PARAM_5G.SINR
-    cluster_range = range(1, 10)
+    cluster_range = range(1, 20)
     operator_choice = [10]
     selected_campaigns = list(range(1, 41))
 
     selected_params = [
-        RF_PARAM_5G.DUMMY,
-        RF_PARAM_5G.SINR,
         RF_PARAM_5G.RSRQ,
-        RF_PARAM_5G.RSRP,
-        RF_PARAM_5G.RSSI,
     ]
     start_time = time.time()
 
