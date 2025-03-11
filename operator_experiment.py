@@ -5,7 +5,6 @@ from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 import pandas as pd
 
-from scripts.beamforming import filter_best_beams
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
 from scripts.data_writer import save_experiment_result
@@ -61,18 +60,20 @@ def single_run(
     n_clusters,
     k_wknn,
     n_runs,
-    use_beam_matching,
+    n_best_beams,
 ):
-    print(f"🔄 Running for operator {op} ({i + 1}/{n_runs} runs) on PID: {os.getpid()}")
+    print(
+        f"🔄 Running for operator {op} - {n_best_beams} ({i + 1}/{n_runs} runs) on PID: {os.getpid()}"
+    )
     _, errors, _, _ = run_weighted_coverage(
-        df=filtered_df,
+        df=filtered_df.copy(),
         rf_param=rf_param,
         cluster_rf_param=rf_param,
         k_max=k_wknn,
         unique_npcis=unique_npcis,
         random_seed=random_seed,
         n_clusters=n_clusters,
-        use_beam_matching=use_beam_matching,
+        n_best_beams=n_best_beams,
     )
     return errors.mean()
 
@@ -86,7 +87,7 @@ def run_experiment(
     clustering_rf_param: RF_PARAM_5G,
     n_clusters: int,
     operator_choice: list[int],
-    use_best_beams: bool = False,
+    n_best_beams_range: list[int],
 ):
     print(
         f"""
@@ -102,10 +103,6 @@ def run_experiment(
     """
     )
 
-    errors_dict = {op: [] for op in operator_choice}  # Store the errors
-    num_entries_dict = {op: [] for op in operator_choice}  # Store the errors
-    num_rps_dict = {op: [] for op in operator_choice}
-
     highest_frequencies = {
         1: [648768],
         10: [643296, 643295],
@@ -113,29 +110,20 @@ def run_experiment(
         88: [638015, 638016],
     }
 
-    for operator in operator_choice:
+    results = []
 
-        nr_arfcns = highest_frequencies[operator]
+    # for operator in operator_choice:
+    # nr_arfcns = highest_frequencies[operator]
+    # filtered_df = filter_dataframe(
+    #     df=df.copy(), operators=[operator], freqs=nr_arfcns
+    # )
 
-        filtered_df = filter_dataframe(
-            df=df.copy(), operators=[operator], freqs=nr_arfcns
-        )
+    filtered_df = df.copy()
 
-        # filter the measurement matricies
-        filtered_df.loc[:, "measurements_matrix"] = filtered_df.loc[
-            :, "measurements_matrix"
-        ].apply(
-            lambda x: filter_best_beams(
-                x, rf_param=rf_param, n_best_pcis=5, use_sidelobes=False
-            )
-        )
+    unique_npcis = extract_unique_npcis(filtered_df["measurements_matrix"])
 
-        unique_npcis = extract_unique_npcis(filtered_df["measurements_matrix"])
-
-        num_entries_dict[operator] = [
-            filtered_df["measurements_matrix"].apply(len).sum()
-        ]
-        num_rps_dict[operator] = [len(filtered_df)]
+    operator = 33
+    for n in n_best_beams_range:
 
         # Use ProcessPoolExecutor to parallelize the runs
         with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
@@ -151,39 +139,42 @@ def run_experiment(
                     n_clusters,
                     k_wknn,
                     n_runs,
-                    use_best_beams,
+                    n,
                 )
                 for i in range(n_runs)
             ]
             for future in futures:
-                errors_dict[operator].append(future.result())
+                err = future.result()
 
-        print(f"\r✅ {operator} completed                                           ")
+                results.append((operator, n, err, len(filtered_df)))
 
-    errors_df = pd.DataFrame(errors_dict)
-    entries_df = pd.DataFrame(num_entries_dict)
-    rps_dict = pd.DataFrame(num_rps_dict)
+    print(f"\r✅ {operator} completed                                    ")
 
-    return errors_df, entries_df, rps_dict
+    results_df = pd.DataFrame(
+        results, columns=["operator", "n_best_beams", "error", "num_entries"]
+    )
+
+    return results_df
 
 
 def main():
     # Parameters
-    n_runs = 20
+    n_runs = 1
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
     n_clusters = 0
-    operator_choice = [1, 10, 50, 88]
+    # operator_choice = [1, 10, 50, 88]
     selected_campaigns = list(range(1, 31))
     use_best_beams = False
+    n_best_beams_range = list(range(0, 10))
 
     start_time = time.time()
 
     # vodafone
-    df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
+    df, random_seeds = load_data(selected_campaigns, rf_param, None)
 
-    errors_df, entries_df, rps_df = run_experiment(
+    result_df = run_experiment(
         df,
         random_seeds,
         n_runs,
@@ -191,7 +182,8 @@ def main():
         rf_param,
         clustering_rf_param,
         n_clusters,
-        operator_choice,
+        [],
+        n_best_beams_range,
     )
 
     # control
@@ -204,7 +196,7 @@ def main():
         "wknn_k": k_wknn,
         "rf_param": rf_param.value,
         "cluster_rf_param": clustering_rf_param.value,
-        "operator_choice": operator_choice,
+        "operator_choice": 33,
         "n_clusters": n_clusters,
         "n_runs": n_runs,
         "campaigns": "all",
@@ -213,9 +205,7 @@ def main():
     }
 
     data = {
-        "errors": errors_df,
-        "entries": entries_df,
-        "rps": rps_df,
+        "results": result_df,
     }
 
     save_experiment_result("operator_experiment", config, data)

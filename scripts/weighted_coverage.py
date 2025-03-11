@@ -3,7 +3,7 @@ import time
 import numpy as np
 import pandas as pd
 
-from scripts.beamforming import find_matching_rps, get_best_beam
+from scripts.beamforming import find_matching_rps, get_best_beam, filter_best_beams
 from scripts.data_processing import cluster_data_and_train_random_forest
 from scripts.matrix_operations import (
     create_point_matrix,
@@ -154,6 +154,7 @@ def run_weighted_coverage(
     random_seed: int,
     n_clusters: int,
     use_beam_matching: bool = False,
+    n_best_beams: int = 0,
 ) -> (np.array, np.array, int, float):
 
     if use_beam_matching:
@@ -164,6 +165,13 @@ def run_weighted_coverage(
     tmp = df.sample(frac=1, random_state=random_seed).reset_index(drop=True)
 
     df_tp, df_rp = dataset_tp_rp_split(tmp, 0.3, random_seed)
+
+    if n_best_beams > 0:
+        df_rp.loc[:, "measurements_matrix"] = df_rp.loc[:, "measurements_matrix"].apply(
+            lambda x: filter_best_beams(
+                x, rf_param, n_best_pcis=n_best_beams, use_sidelobes=False
+            )
+        )
 
     if not n_clusters > 0:
         start_time = time.time()
