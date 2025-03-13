@@ -8,6 +8,7 @@ import pandas as pd
 
 from scripts.beamforming import (
     get_best_beam,
+    filter_best_beams,
 )
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
@@ -68,40 +69,33 @@ def beam_matching_strategy(
     df["best_beam"] = df["measurements_matrix"].apply(
         lambda x: get_best_beam(x, rf_param)
     )
-    print(
-        f"RUNNING STRATEGY -> SIDELOBES: {use_sidelobes} -> BEST BEAM {use_best_beam}"
-    )
+
     unique_npcis = extract_unique_npcis(df["measurements_matrix"])
 
-    # Pre-compute the control matrix (all RPs) once
     df_tp, df_rp = dataset_tp_rp_split(df, 0.3, random)
 
-    # Pre-compute reference point matrices by beam
-    rp_matrices_by_beam = {}
+    df_rp.loc[:, "measurements_matrix"] = df_rp.loc[:, "measurements_matrix"].apply(
+        lambda x: filter_best_beams(
+            x, rf_param, n_best_pcis=n_best_pcis, use_sidelobes=use_sidelobes
+        )
+    )
 
-    hit = 0
-    miss = 0
+    m_rp, idx_rp = create_point_matrix(df_rp, unique_npcis, rf_param)
 
     data = []
     total = len(df_tp)
     for i, (_, tp_row) in enumerate(df_tp.iterrows(), 1):
-        print(f"\r{i}/{total}                ", end="")
+        print(f"\rRun {run}\tPoint {i}/{total}                ", end="")
         tp = pd.DataFrame([tp_row])
-        best_beam = tp_row["best_beam"]
 
-        pcis = [best_beam]
-        # Get the pre-computed matrices for this beam
-        if best_beam in rp_matrices_by_beam:
-            m_rp, idx_rp = rp_matrices_by_beam[best_beam]
-            hit += 1
-        else:
-            m_rp, idx_rp = create_point_matrix(df_rp, [pcis], rf_param)
-            rp_matrices_by_beam[best_beam] = (m_rp, idx_rp)
-            miss += 1
-            print("\rcache miss")
+        tp.loc[:, "measurements_matrix"] = tp.loc[:, "measurements_matrix"].apply(
+            lambda x: filter_best_beams(
+                x, rf_param, n_best_pcis=n_best_pcis, use_sidelobes=use_sidelobes
+            )
+        )
 
-            # Create the point matrix for the test point
-        m_tp, idx_tp = create_point_matrix(tp, pcis, rf_param)
+        # Create the point matrix for the test point
+        m_tp, idx_tp = create_point_matrix(tp, unique_npcis, rf_param)
 
         # Compute weights only if we have matching RPs
         W, idx_sort = compute_weights(m_rp, idx_rp, m_tp, idx_tp)
@@ -110,8 +104,6 @@ def beam_matching_strategy(
         complexity = m_rp.shape[0] * m_rp.shape[1] if len(m_rp.shape) == 2 else None
 
         data.append([errors, complexity])
-
-    print(f"RUN {run} completed \t PID: {os.getpid()}\r MISS {miss} HIT {hit}")
 
     data = np.array(data)
     return data.mean(axis=0)
@@ -128,11 +120,6 @@ def run_experiment(
 ):
 
     data = []
-
-    # find the best beams for each tp for later matching between TP and RP
-    df["best_beam"] = df["measurements_matrix"].apply(
-        lambda x: get_best_beam(x, rf_param)
-    )
 
     num_processors = os.cpu_count()
     # Use ProcessPoolExecutor to parallelize the runs
@@ -167,11 +154,11 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 1
+    n_runs = 20
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     operator_choice = [10]
-    selected_campaigns = list(range(1, 6))
+    selected_campaigns = list(range(1, 21))
 
     # load the data
 
@@ -190,8 +177,7 @@ def main():
 
     results = {}
     for conf in config:
-        print(f"RUN {conf['label']}")
-
+        print(f"Running experiment for {conf['label']}")
         # baseline measurement
         data_df = run_experiment(
             df.copy(deep=True),
@@ -247,7 +233,8 @@ def main():
 
     df = pd.DataFrame(res, columns=cols)
 
-    print(df)
+    print("\n================ RESULTS ================\n")
+    print(df["errors"].to_numpy())
 
     data = {"data": df}
 

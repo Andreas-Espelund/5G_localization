@@ -112,43 +112,41 @@ def run_experiment(
 
     results = []
 
-    # for operator in operator_choice:
-    # nr_arfcns = highest_frequencies[operator]
-    # filtered_df = filter_dataframe(
-    #     df=df.copy(), operators=[operator], freqs=nr_arfcns
-    # )
+    for operator in operator_choice:
+        nr_arfcns = highest_frequencies[operator]
 
-    filtered_df = df.copy()
+        filtered_df = filter_dataframe(
+            df=df.copy(), operators=[operator], freqs=nr_arfcns
+        )
 
-    unique_npcis = extract_unique_npcis(filtered_df["measurements_matrix"])
+        unique_npcis = extract_unique_npcis(filtered_df["measurements_matrix"])
 
-    operator = 33
-    for n in n_best_beams_range:
+        for n in n_best_beams_range:
 
-        # Use ProcessPoolExecutor to parallelize the runs
-        with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
-            futures = [
-                executor.submit(
-                    single_run,
-                    operator,
-                    i,
-                    filtered_df,
-                    rf_param,
-                    unique_npcis,
-                    random_seeds[i],
-                    n_clusters,
-                    k_wknn,
-                    n_runs,
-                    n,
-                )
-                for i in range(n_runs)
-            ]
-            for future in futures:
-                err = future.result()
+            # Use ProcessPoolExecutor to parallelize the runs
+            with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
+                futures = [
+                    executor.submit(
+                        single_run,
+                        operator,
+                        i,
+                        filtered_df,
+                        rf_param,
+                        unique_npcis,
+                        random_seeds[i],
+                        n_clusters,
+                        k_wknn,
+                        n_runs,
+                        n,
+                    )
+                    for i in range(n_runs)
+                ]
+                for future in futures:
+                    err = future.result()
 
-                results.append((operator, n, err, len(filtered_df)))
+                    results.append((operator, n, err, len(filtered_df)))
 
-    print(f"\r✅ {operator} completed                                    ")
+        print(f"\r✅ {operator} completed                                    ")
 
     results_df = pd.DataFrame(
         results, columns=["operator", "n_best_beams", "error", "num_entries"]
@@ -159,20 +157,20 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 1
-    k_wknn = 2
+    n_runs = 15
+    k_wknn = 5
     rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
     n_clusters = 0
-    # operator_choice = [1, 10, 50, 88]
-    selected_campaigns = list(range(1, 31))
+    operator_choice = [10]
+    selected_campaigns = list(range(1, 21))
     use_best_beams = False
-    n_best_beams_range = list(range(0, 10))
+    n_best_beams_range = list(range(0, 11))
 
     start_time = time.time()
 
     # vodafone
-    df, random_seeds = load_data(selected_campaigns, rf_param, None)
+    df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
 
     result_df = run_experiment(
         df,
@@ -182,7 +180,7 @@ def main():
         rf_param,
         clustering_rf_param,
         n_clusters,
-        [],
+        operator_choice,
         n_best_beams_range,
     )
 

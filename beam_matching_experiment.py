@@ -21,7 +21,7 @@ from scripts.utils import (
     extract_unique_npcis,
     dataset_tp_rp_split,
 )
-from scripts.weighted_coverage import wknn_one_tp_row
+from scripts.weighted_coverage import wknn_one_tp_row, wknn_one
 
 
 def load_data(
@@ -78,6 +78,14 @@ def beam_matching_strategy(
 
     # Pre-compute the control matrix (all RPs) once
     df_tp, df_rp = dataset_tp_rp_split(df, 0.3, random)
+
+    m_rp_control, idx_rp_control = create_point_matrix(df_rp, unique_npcis, rf_param)
+    m_tp_control, idx_tp_control = create_point_matrix(df_tp, unique_npcis, rf_param)
+    W_control, idx_sort_control = compute_weights(
+        m_rp_control, idx_rp_control, m_tp_control, idx_tp_control
+    )
+    _, errors_control = wknn_one(df_tp, df_rp, idx_sort_control, W_control, k=2)
+    complexity_control = m_rp_control.shape[0] * m_rp_control.shape[1]
 
     # Pre-compute reference point matrices by beam
     rp_matrices_by_beam = {}
@@ -144,8 +152,10 @@ def beam_matching_strategy(
         data.append([errors, complexity])
 
     print(f"RUN {run} completed \t PID: {os.getpid()}")
-    data = np.array(data)
-    return data.mean(axis=0)
+    data = np.array(data).mean(axis=0)
+    data_control = np.array([errors_control.mean(), complexity_control])
+
+    return np.hstack((data, data_control))
 
 
 def run_experiment(
@@ -190,6 +200,8 @@ def run_experiment(
         columns=[
             "errors",
             "complexity",
+            "errors_control",
+            "complexity_control",
         ],
     )
 
@@ -198,11 +210,11 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 20
+    n_runs = 10
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     operator_choice = [10]
-    selected_campaigns = list(range(1, 41))
+    selected_campaigns = list(range(1, 21))
 
     # load the data
 
@@ -216,29 +228,20 @@ def main():
             "use_best_beam": False,
             "use_sidelobes": False,
             "n_best_pcis": 1,
-        }
+        },
+        {
+            "label": "best_beam",
+            "use_best_beam": True,
+            "use_sidelobes": False,
+            "n_best_pcis": 1,
+        },
+        {
+            "label": "best_beam_with_sidelobes",
+            "use_best_beam": True,
+            "use_sidelobes": True,
+            "n_best_pcis": 1,
+        },
     ]
-
-    pci_range = range(1, 15)
-    for i in pci_range:
-        config.append(
-            {
-                "label": f"best_beam_multi_{i}",
-                "use_best_beam": True,
-                "use_sidelobes": False,
-                "n_best_pcis": i,
-            }
-        )
-
-    for i in pci_range:
-        config.append(
-            {
-                "label": f"best_beam_multi_{i}_sidelobes",
-                "use_best_beam": True,
-                "use_sidelobes": True,
-                "n_best_pcis": i,
-            }
-        )
 
     results = {}
     for conf in config:
@@ -285,6 +288,8 @@ def main():
                 v["n_best_pcis"],
                 d["errors"].tolist(),
                 d["complexity"].tolist(),
+                d["errors_control"].tolist(),
+                d["complexity_control"].tolist(),
             )
         )
 
@@ -295,6 +300,8 @@ def main():
         "n_best_pcis",
         "errors",
         "complexity",
+        "errors_control",
+        "complexity_control",
     ]
 
     df = pd.DataFrame(res, columns=cols)

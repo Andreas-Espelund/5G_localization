@@ -120,3 +120,25 @@ def compute_weights(
     W = 1.0 / D_sort
 
     return W, idx_sort
+
+
+def compute_weights_pca(
+    m_rfp: np.array,
+    m_tp: np.array,
+) -> tuple[np.array, np.array]:
+    """
+    Compute weights using PCA-transformed data
+    """
+    # Compute Euclidean distances in the PCA space
+    D = cdist(m_tp, m_rfp, metric="euclidean")
+
+    # Sort distances and compute weights
+    idx_sort = np.argsort(D, axis=1)
+    D_sort = np.take_along_axis(D, idx_sort, axis=1)
+
+    # Avoid division by zero
+    min_nonzero_distance = np.min(D[D > 0]) if np.any(D > 0) else 0.1
+    D_sort[D_sort == 0] = min_nonzero_distance / 20
+
+    W = 1.0 / D_sort
+    return W, idx_sort
