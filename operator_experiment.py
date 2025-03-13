@@ -65,7 +65,7 @@ def single_run(
     print(
         f"🔄 Running for operator {op} - {n_best_beams} ({i + 1}/{n_runs} runs) on PID: {os.getpid()}"
     )
-    _, errors, _, _ = run_weighted_coverage(
+    return run_weighted_coverage(
         df=filtered_df.copy(),
         rf_param=rf_param,
         cluster_rf_param=rf_param,
@@ -73,9 +73,7 @@ def single_run(
         unique_npcis=unique_npcis,
         random_seed=random_seed,
         n_clusters=n_clusters,
-        n_best_beams=n_best_beams,
     )
-    return errors.mean()
 
 
 def run_experiment(
@@ -85,16 +83,15 @@ def run_experiment(
     k_wknn: int,
     rf_param: RF_PARAM_5G,
     clustering_rf_param: RF_PARAM_5G,
-    n_clusters: int,
+    cluster_range: int,
     operator_choice: list[int],
-    n_best_beams_range: list[int],
 ):
     print(
         f"""
     Running frequency experiment
     🧪 Experiment setup 🧪
     🔢 k-value for wKNN = {k_wknn}
-    👨‍👩‍👦‍👦 n clusters = {n_clusters}
+    👨‍👩‍👦‍👦 n clusters = {cluster_range}
     🛜 RF PARAM {rf_param.value}
     📡 Cluster RF PARAM {clustering_rf_param.value}
     📶 Operator choice {operator_choice}
@@ -118,38 +115,47 @@ def run_experiment(
         filtered_df = filter_dataframe(
             df=df.copy(), operators=[operator], freqs=nr_arfcns
         )
+        for n_clus in cluster_range:
 
-        unique_npcis = extract_unique_npcis(filtered_df["measurements_matrix"])
-
-        for n in n_best_beams_range:
+            unique_npcis = extract_unique_npcis(filtered_df["measurements_matrix"])
 
             # Use ProcessPoolExecutor to parallelize the runs
             with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
                 futures = [
                     executor.submit(
-                        single_run,
-                        operator,
-                        i,
+                        run_weighted_coverage,
                         filtered_df,
                         rf_param,
+                        rf_param,
+                        k_wknn,
                         unique_npcis,
                         random_seeds[i],
-                        n_clusters,
-                        k_wknn,
-                        n_runs,
-                        n,
+                        n_clus,
                     )
                     for i in range(n_runs)
                 ]
                 for future in futures:
-                    err = future.result()
+                    data, runtime = future.result()
 
-                    results.append((operator, n, err, len(filtered_df)))
+                    data_mean = data.mean(axis=0)
+                    op = np.array([operator, n_clus])
 
-        print(f"\r✅ {operator} completed                                    ")
+                    data = np.concatenate([op, data_mean])
+                    results.append(data.tolist())
+                    print(f"Operator {operator} run done in {runtime}")
+
+        print(f"✅ Operator {operator} completed ✅")
 
     results_df = pd.DataFrame(
-        results, columns=["operator", "n_best_beams", "error", "num_entries"]
+        results,
+        columns=[
+            "operator",
+            "n_clusters",
+            "error",
+            "complexity",
+            "error_control",
+            "complexity_control",
+        ],
     )
 
     return results_df
@@ -157,15 +163,13 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 15
-    k_wknn = 5
+    n_runs = 30
+    k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
-    n_clusters = 0
-    operator_choice = [10]
-    selected_campaigns = list(range(1, 21))
-    use_best_beams = False
-    n_best_beams_range = list(range(0, 11))
+    cluster_range = range(0, 1)
+    operator_choice = [1, 10, 50, 88]
+    selected_campaigns = list(range(1, 51))
 
     start_time = time.time()
 
@@ -179,9 +183,8 @@ def main():
         k_wknn,
         rf_param,
         clustering_rf_param,
-        n_clusters,
+        cluster_range,
         operator_choice,
-        n_best_beams_range,
     )
 
     # control
@@ -194,12 +197,11 @@ def main():
         "wknn_k": k_wknn,
         "rf_param": rf_param.value,
         "cluster_rf_param": clustering_rf_param.value,
-        "operator_choice": 33,
-        "n_clusters": n_clusters,
+        "operator_choice": operator_choice,
+        "n_clusters": list(cluster_range),
         "n_runs": n_runs,
         "campaigns": "all",
         "runtime": total_time,
-        "use_best_beams": use_best_beams,
     }
 
     data = {

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
 
-from scripts.beamforming import find_matching_rps, get_best_beam
+from scripts.beamforming import find_matching_rps
 from scripts.data_processing import cluster_data_and_train_random_forest
 from scripts.matrix_operations import (
     create_point_matrix,
@@ -155,13 +155,7 @@ def run_weighted_coverage(
     unique_npcis: np.array(tuple[int, int, int]),
     random_seed: int,
     n_clusters: int,
-    use_beam_matching: bool = False,
 ) -> (np.array, np.array, int, float):
-
-    if use_beam_matching:
-        df["best_beam"] = df["measurements_matrix"].apply(
-            lambda x: get_best_beam(x, rf_param)
-        )
 
     tmp = df.sample(frac=1, random_state=random_seed).reset_index(drop=True)
 
@@ -169,19 +163,17 @@ def run_weighted_coverage(
 
     if not n_clusters > 0:
         start_time = time.time()
-        TP_est_location, k_avg_error = process_test_points(
-            df_tp, df_rp, unique_npcis, rf_param, k_max, use_beam_matching
-        )
+        results = process_test_points_pca(df_tp, df_rp, unique_npcis, rf_param, k_max)
         end_time = time.time()
-        complexity = len(df_tp) * len(df_rp)
-        return TP_est_location, k_avg_error, complexity, end_time - start_time
+
+        return results, end_time - start_time
 
     rf_model = cluster_data_and_train_random_forest(
         df_rp, n_clusters, unique_npcis, cluster_rf_param, random_seed
     )
 
-    start_time = time.time()  # dont include model training in the online stage timing
-    TP_est_location, k_avg_error, rp_factor = process_clusters(
+    start_time = time.time()  # don't include model training in the online stage timing
+    result = process_clusters(
         df_tp,
         df_rp,
         unique_npcis,
@@ -189,11 +181,10 @@ def run_weighted_coverage(
         cluster_rf_param,
         k_max,
         rf_model,
-        use_beam_matching,
     )
     end_time = time.time()
 
-    return TP_est_location, k_avg_error, rp_factor, end_time - start_time
+    return result, end_time - start_time
 
 
 def process_clusters(
@@ -204,7 +195,6 @@ def process_clusters(
     cluster_rf_param: RF_PARAM_5G,
     k_max: int,
     rf_model,
-    use_beam_matching: bool = False,
 ):
     # Predict clusters for all test points at once
     tp_features, _ = create_point_matrix(df_tp, unique_npcis, cluster_rf_param)
@@ -215,27 +205,18 @@ def process_clusters(
     cluster_groups = df_tp.groupby("predicted_cluster")
 
     # Initialize lists to store results
-    all_tp_est_locations = []
-    all_k_avg_errors = []
-    total_rps = 0
+    results = []
 
     for cluster, group in cluster_groups:
         rps = df_rp[df_rp["cluster"] == cluster]
-        total_rps += len(group) * len(rps)
 
         # Process each cluster's test points
-        TP_est_location, k_avg_error = process_test_points(
-            group, rps, unique_npcis, rf_param, k_max, use_beam_matching
-        )
-
-        # Store results
-        all_tp_est_locations.extend(TP_est_location)
-        all_k_avg_errors.extend(k_avg_error)
+        res = process_test_points_pca(group, rps, unique_npcis, rf_param, k_max)
+        results.append(res)
 
     # Concatenate all estimated locations and average errors
-    TP_est_location_combined = np.vstack(all_tp_est_locations)
-    all_k_avg_errors = np.array(all_k_avg_errors)
-    return TP_est_location_combined, all_k_avg_errors, total_rps
+
+    return np.vstack(results)
 
 
 def process_test_points(
@@ -273,7 +254,7 @@ def process_test_points_pca(
     pcis: list[tuple],
     rf_param: RF_PARAM_5G,
     k: int = 2,
-    n_components: int = 0.95,
+    n_components: float = 0.95,
 ):
     # 1. Create the full point matrix with all beam features
     m_rp_full, idx_rp_full = create_point_matrix(df_rp, pcis, rf_param)
@@ -293,12 +274,22 @@ def process_test_points_pca(
 
     _, errors_control = wknn_one(df_tp, df_rp, idx_sort, W, k=2)
 
-    return (
-        errors.mean(),
-        int(m_rp_pca.shape[0] * m_rp_pca.shape[1]),
-        errors_control.mean(),
-        int(m_rp_full.shape[0] * m_rp_full.shape[1]),
+    n_points = errors.shape[0]
+
+    complexity = np.repeat(m_rp_pca.shape[0] * m_tp_pca.shape[1], n_points)
+
+    complexity_control = np.repeat(m_rp_full.shape[0] * m_tp_full.shape[1], n_points)
+
+    res = np.array(
+        [
+            errors,
+            complexity,
+            errors_control,
+            complexity_control,
+        ]
     )
+
+    return res.T
 
 
 def wknn_one_tp_row(
