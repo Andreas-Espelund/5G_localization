@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
 
-from scripts.beamforming import find_matching_rps
 from scripts.data_processing import cluster_data_and_train_random_forest
 from scripts.matrix_operations import (
     create_point_matrix,
@@ -141,6 +140,8 @@ def wknn_one(
     TP_est_location[:, 0] = lat_k_TP
     TP_est_location[:, 1] = long_k_TP
 
+    df_tp["error"] = errors
+
     return (
         TP_est_location,
         errors,
@@ -155,6 +156,7 @@ def run_weighted_coverage(
     unique_npcis: np.array(tuple[int, int, int]),
     random_seed: int,
     n_clusters: int,
+    use_pca: bool = True,
 ) -> (np.array, np.array, int, float):
 
     tmp = df.sample(frac=1, random_state=random_seed).reset_index(drop=True)
@@ -163,10 +165,13 @@ def run_weighted_coverage(
 
     if not n_clusters > 0:
         start_time = time.time()
-        results = process_test_points_pca(df_tp, df_rp, unique_npcis, rf_param, k_max)
+        results = process_test_points(
+            df_tp, df_rp, unique_npcis, rf_param, k_max, use_pca=use_pca
+        )
         end_time = time.time()
 
-        return results, end_time - start_time
+        runtime = (end_time - start_time) * 1000 / df_tp.shape[0]
+        return results, runtime
 
     rf_model = cluster_data_and_train_random_forest(
         df_rp, n_clusters, unique_npcis, cluster_rf_param, random_seed
@@ -181,10 +186,13 @@ def run_weighted_coverage(
         cluster_rf_param,
         k_max,
         rf_model,
+        use_pca=use_pca,
     )
     end_time = time.time()
 
-    return result, end_time - start_time
+    runtime = (end_time - start_time) * 1000 / df_tp.shape[0]
+
+    return result, runtime
 
 
 def process_clusters(
@@ -195,6 +203,7 @@ def process_clusters(
     cluster_rf_param: RF_PARAM_5G,
     k_max: int,
     rf_model,
+    use_pca: bool,
 ):
     # Predict clusters for all test points at once
     tp_features, _ = create_point_matrix(df_tp, unique_npcis, cluster_rf_param)
@@ -211,7 +220,9 @@ def process_clusters(
         rps = df_rp[df_rp["cluster"] == cluster]
 
         # Process each cluster's test points
-        res = process_test_points_pca(group, rps, unique_npcis, rf_param, k_max)
+        res = process_test_points(
+            group, rps, unique_npcis, rf_param, k_max, use_pca=use_pca
+        )
         results.append(res)
 
     # Concatenate all estimated locations and average errors
@@ -222,45 +233,28 @@ def process_clusters(
 def process_test_points(
     df_tp: pd.DataFrame,
     df_rp: pd.DataFrame,
-    unique_npcis: np.array(tuple[int, int, int]),
-    rf_param: RF_PARAM_5G,
-    k_max: int,
-    use_beam_matching: bool,
-):
-    # Create the point matrix for the reference points
-    m_rfp, idx_rfp = create_point_matrix(df_rp, unique_npcis, rf_param)
-
-    # Create the point matrix for the test points
-    m_tp, idx_tp = create_point_matrix(df_tp, unique_npcis, rf_param)
-
-    # Compute the weights between the test points and reference points
-    if use_beam_matching:
-        df_tp["matches"] = df_tp["best_beam"].apply(
-            lambda beam: find_matching_rps(df_rp, beam)
-        )
-        W, idx_sort = compute_weights(m_rfp, idx_rfp, m_tp, idx_tp)
-    else:
-        W, idx_sort = compute_weights(m_rfp, idx_rfp, m_tp, idx_tp)
-
-    # Do wKNN to estimate the positions and errors
-    TP_est_location, k_avg_error = wknn_one(df_tp, df_rp, idx_sort, W, k_max)
-
-    return TP_est_location, k_avg_error
-
-
-def process_test_points_pca(
-    df_tp: pd.DataFrame,
-    df_rp: pd.DataFrame,
     pcis: list[tuple],
     rf_param: RF_PARAM_5G,
     k: int = 2,
+    use_pca: bool = False,
     n_components: float = 0.95,
 ):
-    # 1. Create the full point matrix with all beam features
+
+    n_points = df_tp.shape[0]
+
+    # Create the full point matrix with all beam features
     m_rp_full, idx_rp_full = create_point_matrix(df_rp, pcis, rf_param)
     m_tp_full, idx_tp_full = create_point_matrix(df_tp, pcis, rf_param)
 
-    # 3. Apply PCA to reduce dimensions
+    # If we dont use PCA, just calcualte the errors and return
+    if not use_pca:
+        W, idx_sort = compute_weights(m_rp_full, idx_rp_full, m_tp_full, idx_tp_full)
+        _, errors = wknn_one(df_tp, df_rp, idx_sort, W, k=k)
+        complexity = np.repeat(m_rp_full.shape[0] * m_tp_full.shape[1], n_points)
+
+        return np.array([errors, complexity]).T
+
+    # Apply PCA to reduce dimensions
     pca = PCA(n_components=n_components)
     pca.fit(m_rp_full)
     m_rp_pca = pca.transform(m_rp_full)
@@ -268,28 +262,11 @@ def process_test_points_pca(
 
     W_pca, idx_sort_pca = compute_weights_pca(m_rp_pca, m_tp_pca)
 
-    W, idx_sort = compute_weights(m_rp_full, idx_rp_full, m_tp_full, idx_tp_full)
-
     _, errors = wknn_one(df_tp, df_rp, idx_sort_pca, W_pca, k)
-
-    _, errors_control = wknn_one(df_tp, df_rp, idx_sort, W, k=2)
-
-    n_points = errors.shape[0]
 
     complexity = np.repeat(m_rp_pca.shape[0] * m_tp_pca.shape[1], n_points)
 
-    complexity_control = np.repeat(m_rp_full.shape[0] * m_tp_full.shape[1], n_points)
-
-    res = np.array(
-        [
-            errors,
-            complexity,
-            errors_control,
-            complexity_control,
-        ]
-    )
-
-    return res.T
+    return np.array([errors, complexity]).T
 
 
 def wknn_one_tp_row(

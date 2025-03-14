@@ -129,6 +129,7 @@ def compute_weights_pca(
     """
     Compute weights using PCA-transformed data
     """
+
     # Compute Euclidean distances in the PCA space
     D = cdist(m_tp, m_rfp, metric="euclidean")
 

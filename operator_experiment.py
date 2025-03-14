@@ -85,6 +85,7 @@ def run_experiment(
     clustering_rf_param: RF_PARAM_5G,
     cluster_range: int,
     operator_choice: list[int],
+    use_pca,
 ):
     print(
         f"""
@@ -131,6 +132,7 @@ def run_experiment(
                         unique_npcis,
                         random_seeds[i],
                         n_clus,
+                        use_pca,
                     )
                     for i in range(n_runs)
                 ]
@@ -138,7 +140,7 @@ def run_experiment(
                     data, runtime = future.result()
 
                     data_mean = data.mean(axis=0)
-                    op = np.array([operator, n_clus])
+                    op = np.array([operator, n_clus, use_pca, runtime])
 
                     data = np.concatenate([op, data_mean])
                     results.append(data.tolist())
@@ -148,14 +150,7 @@ def run_experiment(
 
     results_df = pd.DataFrame(
         results,
-        columns=[
-            "operator",
-            "n_clusters",
-            "error",
-            "complexity",
-            "error_control",
-            "complexity_control",
-        ],
+        columns=["operator", "n_clusters", "use_pca", "runtime", "error", "complexity"],
     )
 
     return results_df
@@ -163,13 +158,13 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 30
+    n_runs = 20
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
     cluster_range = range(0, 1)
     operator_choice = [1, 10, 50, 88]
-    selected_campaigns = list(range(1, 51))
+    selected_campaigns = list(range(1, 31))
 
     start_time = time.time()
 
@@ -185,7 +180,22 @@ def main():
         clustering_rf_param,
         cluster_range,
         operator_choice,
+        use_pca=True,
     )
+
+    result_df_control = run_experiment(
+        df,
+        random_seeds,
+        n_runs,
+        k_wknn,
+        rf_param,
+        clustering_rf_param,
+        cluster_range,
+        operator_choice,
+        use_pca=False,
+    )
+
+    result_df = pd.concat([result_df, result_df_control], ignore_index=True)
 
     # control
 
