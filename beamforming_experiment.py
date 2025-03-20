@@ -154,10 +154,10 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 20
+    n_runs = 2
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
-    operator_choice = [10]
+    operator_choice = [1, 10, 50, 88]
     selected_campaigns = list(range(1, 21))
 
     # load the data
@@ -170,8 +170,8 @@ def main():
         {
             "label": "baseline",
             "use_best_beam": False,
-            "use_sidelobes": False,
-            "n_best_pcis": 1,
+            "use_sidelobes": True,
+            "n_best_pcis": 500,
         }
     ]
 

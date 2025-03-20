@@ -16,7 +16,11 @@ from scripts.utils import (
 from scripts.weighted_coverage import run_weighted_coverage
 
 
-def load_data(selected_campaigns: list[int]):
+def load_data(
+    selected_campaigns: list[int],
+    operator_choice: list[int],
+    rf_params: list[RF_PARAM_5G],
+):
     filename = "5G_data_2023.mat"
 
     # Series of random seeds for reproducability
@@ -34,8 +38,17 @@ def load_data(selected_campaigns: list[int]):
     # Data filtering
     df = filter_dataframe(
         df=df,
-        operators=[10],
-        include_columns=["pci", "beam_index", "nr_arfcn", "operator_id", "sinr"],
+        operators=operator_choice,
+        include_columns=[
+            "pci",
+            "beam_index",
+            "nr_arfcn",
+            "operator_id",
+            "rsrq",
+            "rssi",
+            "rsrp",
+            "sinr",
+        ],
         campaigns=selected_campaigns,
     )
 
@@ -46,7 +59,7 @@ def single_run(
     i, filtered_df, rf_param, unique_npcis, random_seed, n_clusters, k_wknn, n_runs
 ):
     print(f"🔄 Running ({i + 1}/{n_runs} runs) on PID: {os.getpid()}")
-    _, errors, _, _ = run_weighted_coverage(
+    return run_weighted_coverage(
         df=filtered_df,
         rf_param=rf_param,
         cluster_rf_param=rf_param,
@@ -55,7 +68,6 @@ def single_run(
         random_seed=random_seed,
         n_clusters=n_clusters,
     )
-    return errors.mean()
 
 
 def run_experiment(
@@ -87,7 +99,7 @@ def run_experiment(
     _________________________________
     """
     )
-
+    results = []
     # Use ProcessPoolExecutor to parallelize the runs
     for k in k_range:
         with ProcessPoolExecutor(max_workers=15) as executor:
@@ -106,38 +118,50 @@ def run_experiment(
                 for i in range(n_runs)
             ]
             for future in futures:
-                errors_dict[k].append(future.result())
+                res, runtime = future.result()
 
-        print(f"\r✅ {k} completed                                           ")
+                data = np.array([rf_param.value, k, runtime])
+                data_2d = np.tile(data, (res.shape[0], 1))
 
-    errors_df = pd.DataFrame(errors_dict)
+                res = np.concatenate([data_2d, res], axis=1)
 
-    return errors_df
+                results.extend(res)
+
+        print(f"\r✅ k={k} completed                                           ")
+
+    return pd.DataFrame(
+        results, columns=["rf_param", "wknn_k", "runtime", "errors", "complexity"]
+    )
 
 
 def main():
     # Parameters
-    n_runs = 30
+    n_runs = 20
     k_wknn = 20
     rf_param = RF_PARAM_5G.SINR
     clustering_rf_param = RF_PARAM_5G.SINR
-    operator_choice = [10]
-    selected_campaigns = list(range(1, 21))
+    operator_choice = [1, 10, 50, 88]
+    selected_campaigns = list(range(1, 41))
 
-    df, random_seeds = load_data(selected_campaigns)
+    params = [RF_PARAM_5G.SINR, RF_PARAM_5G.RSRQ, RF_PARAM_5G.RSRP, RF_PARAM_5G.RSSI]
+
+    df, random_seeds = load_data(selected_campaigns, operator_choice, rf_param)
 
     start_time = time.time()
 
-    errors_df = run_experiment(
-        df,
-        random_seeds,
-        n_runs,
-        k_wknn,
-        rf_param,
-        clustering_rf_param,
-        0,
-        operator_choice,
-    )
+    results_df = pd.DataFrame()
+    for p in params:
+        res_df = run_experiment(
+            df,
+            random_seeds,
+            n_runs,
+            k_wknn,
+            p,
+            p,
+            0,
+            operator_choice,
+        )
+        results_df = pd.concat([results_df, res_df], ignore_index=True, axis=0)
 
     end_time = time.time()
     total_time = end_time - start_time
@@ -153,7 +177,7 @@ def main():
     }
 
     data = {
-        "errors": errors_df,
+        "data": results_df,
     }
 
     save_experiment_result("wknn_experiment", config, data)

@@ -139,11 +139,12 @@ def run_experiment(
                 for future in futures:
                     data, runtime = future.result()
 
-                    data_mean = data.mean(axis=0)
                     op = np.array([operator, n_clus, use_pca, runtime])
+                    op_2d = np.tile(op, (data.shape[0], 1))
 
-                    data = np.concatenate([op, data_mean])
-                    results.append(data.tolist())
+                    res = np.concatenate([op_2d, data], axis=1)
+
+                    results.extend(res)
                     print(f"Operator {operator} run done in {runtime}")
 
         print(f"✅ Operator {operator} completed ✅")
@@ -162,7 +163,7 @@ def main():
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
-    cluster_range = range(0, 1)
+    cluster_range = range(10, 11)
     operator_choice = [1, 10, 50, 88]
     selected_campaigns = list(range(1, 31))
 
