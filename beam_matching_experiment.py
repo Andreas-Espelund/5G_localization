@@ -1,10 +1,11 @@
 import os
 import time
 from concurrent.futures import ProcessPoolExecutor
-from typing import Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
+from numpy import ndarray, dtype
 
 from scripts.beamforming import (
     get_best_beam,
@@ -66,7 +67,7 @@ def beam_matching_strategy(
     use_best_beam: bool,
     use_sidelobes: bool,
     n_best_pcis: int,
-) -> Tuple[float, float, Tuple[int, int], Tuple[int, int]]:
+) -> ndarray[Any, dtype[Any]]:
     # get the best beam for each point
     df["best_beam"] = df["measurements_matrix"].apply(
         lambda x: get_best_beam(x, rf_param)
@@ -145,17 +146,28 @@ def beam_matching_strategy(
         # Compute weights only if we have matching RPs
 
         W, idx_sort = compute_weights(m_rp, idx_rp, m_tp, idx_tp)
-        _, errors = wknn_one_tp_row(tp, rps, idx_sort, W, 2)
+        _, err = wknn_one_tp_row(tp, rps, idx_sort, W, 2)
 
-        complexity = m_rp.shape[0] * m_rp.shape[1] if len(m_rp.shape) == 2 else None
+        complexity = m_rp.shape[0] * m_rp.shape[1]
 
-        data.append([errors, complexity])
+        data.append(
+            [
+                err,
+                complexity,
+                str(best_beam),
+                tp_row["lat"],
+                tp_row["lng"],
+            ]
+        )
 
     print(f"RUN {run} completed \t PID: {os.getpid()}")
-    data = np.array(data).mean(axis=0)
-    data_control = np.array([errors_control.mean(), complexity_control])
 
-    return np.hstack((data, data_control))
+    data = np.array(data)
+
+    print(data.shape)
+    print(data)
+
+    return data
 
 
 def run_experiment(
@@ -193,15 +205,16 @@ def run_experiment(
         ]
         for future in futures:
             res = future.result()
-            data.append(res)
+            data.extend(res)
 
     data_df = pd.DataFrame(
         data,
         columns=[
             "errors",
             "complexity",
-            "errors_control",
-            "complexity_control",
+            "best_beam",
+            "lat",
+            "lng",
         ],
     )
 
@@ -210,11 +223,11 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 10
+    n_runs = 1
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     operator_choice = [10]
-    selected_campaigns = list(range(1, 21))
+    selected_campaigns = list(range(1, 11))
 
     # load the data
 
@@ -229,21 +242,24 @@ def main():
             "use_sidelobes": False,
             "n_best_pcis": 1,
         },
-        {
-            "label": "best_beam",
-            "use_best_beam": True,
-            "use_sidelobes": False,
-            "n_best_pcis": 1,
-        },
-        {
-            "label": "best_beam_with_sidelobes",
-            "use_best_beam": True,
-            "use_sidelobes": True,
-            "n_best_pcis": 1,
-        },
+        # {
+        #     "label": "best_beam",
+        #     "use_best_beam": True,
+        #     "use_sidelobes": False,
+        #     "n_best_pcis": 1,
+        # },
+        # {
+        #     "label": "best_beam_with_sidelobes",
+        #     "use_best_beam": True,
+        #     "use_sidelobes": True,
+        #     "n_best_pcis": 1,
+        # },
     ]
 
     results = {}
+
+    results_df = pd.DataFrame()
+
     for conf in config:
         print(f"RUN {conf['label']}")
 
@@ -257,10 +273,12 @@ def main():
             use_sidelobes=conf["use_sidelobes"],
             n_best_pcis=conf["n_best_pcis"],
         )
-        results[conf["label"]] = {
-            **conf,
-            "data": data_df,
-        }
+
+        data_df["use_best_beam"] = conf["use_best_beam"]
+        data_df["use_sidelobes"] = conf["use_sidelobes"]
+        data_df["n_best_pcis"] = conf["n_best_pcis"]
+
+        results_df = pd.concat([results_df, data_df], ignore_index=True, axis=0)
 
     end_time = time.time()
     total_time = end_time - start_time
@@ -276,39 +294,8 @@ def main():
         "runtime": total_time,
     }
 
-    res = []
-    for k, v in results.items():
-        label = k
-        d = v["data"]
-        res.append(
-            (
-                label,
-                v["use_best_beam"],
-                v["use_sidelobes"],
-                v["n_best_pcis"],
-                d["errors"].tolist(),
-                d["complexity"].tolist(),
-                d["errors_control"].tolist(),
-                d["complexity_control"].tolist(),
-            )
-        )
-
-    cols = [
-        "config",
-        "use_best_beam",
-        "use_sidelobes",
-        "n_best_pcis",
-        "errors",
-        "complexity",
-        "errors_control",
-        "complexity_control",
-    ]
-
-    df = pd.DataFrame(res, columns=cols)
-
-    print(df)
-
-    data = {"data": df}
+    print(results_df.head(10))
+    data = {"data": results_df}
 
     save_experiment_result("beam_matching_experiment", config, data)
 

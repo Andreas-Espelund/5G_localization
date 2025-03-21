@@ -5,6 +5,55 @@ from scripts.matrix_operations import create_point_matrix, compute_weights
 from scripts.utils import RF_PARAM_5G, extract_unique_npcis
 
 
+def matrix_filter(
+    mat: pd.DataFrame,
+    rf_param: RF_PARAM_5G,
+    include_n_best_pcis: int = None,
+    include_n_best_beams: int = None,
+):
+    """
+
+    :param mat: Measurements matrix
+    :param rf_param: What RF parameter to sort points by
+    :param include_n_best_pcis: How many PCIs to include, set to None to include all PCI points
+    :param include_n_best_beams: How many Beams to include, set to None to include all Beams
+    :return:
+    """
+
+    mat = mat.dropna(subset=[rf_param.value])
+
+    if mat.empty:
+        return mat
+
+    if not (include_n_best_pcis or include_n_best_beams):
+        return mat
+    # Get the maximum value for each PCI and beam_index combination
+    idx = mat.groupby(["pci", "beam_index"])[rf_param.value].idxmax()
+    beams = mat.loc[idx].sort_values(by=[rf_param.value], ascending=False)
+
+    # Filter for the n best PCIs if specified
+    if include_n_best_pcis:
+        # Get the n best unique PCIs based on their maximum RF parameter value
+        best_pcis = (
+            beams.groupby("pci")[rf_param.value]
+            .max()
+            .nlargest(include_n_best_pcis)
+            .index.tolist()
+        )
+        beams = beams[beams["pci"].isin(best_pcis)]
+
+    # Filter for the b best beams for each PCI if specified
+    if include_n_best_beams:
+        # For each PCI, get the b best beams
+        beams = (
+            beams.groupby("pci")
+            .apply(lambda x: x.nlargest(include_n_best_beams, rf_param.value))
+            .reset_index(drop=True)
+        )
+
+    return beams
+
+
 def get_single_best_beam(matrix: pd.DataFrame, rf_param: RF_PARAM_5G) -> tuple:
     matrix = matrix.dropna(subset=[rf_param.value])
     if matrix.empty:
