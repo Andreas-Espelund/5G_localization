@@ -12,6 +12,7 @@ def matrix_filter(
     include_n_best_beams: int = None,
 ):
     """
+
     :param mat: Measurements matrix
     :param rf_param: What RF parameter to sort points by
     :param include_n_best_pcis: How many PCIs to include, set to None to include all PCI points
@@ -26,26 +27,20 @@ def matrix_filter(
 
     if not (include_n_best_pcis or include_n_best_beams):
         return mat
-
-    # Get the maximum value for each pci, operator_id, and nr_arfcn combination
-    idx = mat.groupby(["pci", "operator_id", "nr_arfcn"])[rf_param.value].idxmax()
+    # Get the maximum value for each PCI and beam_index combination
+    idx = mat.groupby(["pci", "beam_index"])[rf_param.value].idxmax()
     beams = mat.loc[idx].sort_values(by=[rf_param.value], ascending=False)
 
     # Filter for the n best PCIs if specified
     if include_n_best_pcis:
-        # Get the n best unique combinations of pci, operator_id, and nr_arfcn based on their maximum RF parameter value
-        best_combinations = (
-            beams.groupby(["pci", "operator_id", "nr_arfcn"])[rf_param.value]
+        # Get the n best unique PCIs based on their maximum RF parameter value
+        best_pcis = (
+            beams.groupby("pci")[rf_param.value]
             .max()
             .nlargest(include_n_best_pcis)
             .index.tolist()
         )
-        # Filter the beams to include only the best combinations
-        beams = beams[
-            beams.set_index(["pci", "operator_id", "nr_arfcn"]).index.isin(
-                best_combinations
-            )
-        ]
+        beams = beams[beams["pci"].isin(best_pcis)]
 
     # Filter for the b best beams for each PCI if specified
     if include_n_best_beams:

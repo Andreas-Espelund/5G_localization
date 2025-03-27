@@ -77,6 +77,8 @@ def beam_matching_strategy_2(
 
     df_tp, df_rp = dataset_tp_rp_split(df, 0.3, random)
 
+    start = time.perf_counter()
+
     m_rp, idx_rp = create_point_matrix(df_rp, pcis, rf_param)
 
     m_tp, idx_tp = create_point_matrix(df_tp, pcis, rf_param)
@@ -85,6 +87,7 @@ def beam_matching_strategy_2(
 
     _, errors = wknn_one(df_tp, df_rp, idx_sort, W, 2)
 
+    runtime = time.perf_counter() - start
     complexity = m_rp.shape[0] * m_rp.shape[1]
 
     data = np.array(
@@ -92,6 +95,7 @@ def beam_matching_strategy_2(
             errors,
             np.repeat(complexity, errors.shape[0]),
             np.repeat(run, errors.shape[0]),
+            np.repeat(runtime, errors.shape[0]),
         ]
     )
     print(f"Run {run} complete")
@@ -124,6 +128,8 @@ def beam_matching_strategy(
         )
     )
 
+    start_time = time.perf_counter()
+
     m_rp, idx_rp = create_point_matrix(df_rp, unique_npcis, rf_param)
 
     data = []
@@ -151,9 +157,16 @@ def beam_matching_strategy(
 
         data.append([errors, complexity, run])
 
+    end_time = time.perf_counter()
+    runtime = end_time - start_time
+
+    # Convert to NumPy array and add the runtime as a new column
     data = np.array(data)
+    runtime_column = np.full((data.shape[0], 1), runtime)
+    data_with_runtime = np.hstack((data, runtime_column))
+
     print(f"\tRun {run} complete")
-    return data
+    return data_with_runtime
 
 
 def run_experiment(
@@ -192,7 +205,7 @@ def run_experiment(
 
     data_df = pd.DataFrame(
         data,
-        columns=["errors", "complexity", "run"],
+        columns=["errors", "complexity", "run", "runtime"],
     )
 
     return data_df
@@ -203,7 +216,7 @@ def main():
     n_runs = 10
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
-    operator_choice = [10, 50, 88]
+    operator_choice = [1, 10, 50, 88]
     selected_campaigns = list(range(1, 21))
 
     # load the data
@@ -213,18 +226,15 @@ def main():
     start_time = time.time()
 
     # Basic configuration
-    config_params = [[None, None]]
+    config_params = []
 
-    pci_config = list(range(1, 30))
-    # pci_config = [None]
-    # beam_config = [1, 2, 3, 4, 5, 6, 7, 8]
-    beam_config = [None]
+    pci_config = [None, 1]
+    beam_config = [None, 1]
 
-    # pci_config = [20]
-
-    for n_pcis in pci_config:
-        for n_beams in beam_config:
-            config_params.append([n_pcis, n_beams])
+    for op in operator_choice:
+        for n_pcis in pci_config:
+            for n_beams in beam_config:
+                config_params.append([n_pcis, n_beams, op])
 
     results_df = pd.DataFrame()
 
@@ -233,12 +243,18 @@ def main():
     for index, conf in enumerate(config_params):
         n_best_pcis = conf[0]
         n_best_beams = conf[1]
+        operator = conf[2]
         # baseline measurement
 
         run_start = time.time()
         print(f"🔄 Running confing {index + 1} / {total_configs}")
+
+        tmp = df.copy(deep=True)
+
+        filter_dataframe(tmp, operators=[operator])
+
         data_df = run_experiment(
-            df.copy(deep=True),
+            tmp,
             random_seeds,
             n_runs,
             rf_param,
@@ -252,6 +268,7 @@ def main():
 
         data_df["n_best_pcis"] = n_best_pcis
         data_df["n_best_beams"] = n_best_beams
+        data_df["operator"] = operator
 
         results_df = pd.concat([results_df, data_df], ignore_index=True, axis=0)
 
