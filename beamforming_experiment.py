@@ -173,7 +173,7 @@ def run_experiment(
 
     num_processors = os.cpu_count()
     # Use ProcessPoolExecutor to parallelize the runs
-    with ProcessPoolExecutor(max_workers=5) as executor:
+    with ProcessPoolExecutor(max_workers=2) as executor:
         futures = [
             executor.submit(
                 beam_matching_strategy_2,
@@ -203,7 +203,7 @@ def main():
     n_runs = 15
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
-    operator_choice = [1, 10, 50, 88]
+    operator_choice = [50]
     selected_campaigns = list(range(1, 21))
 
     # load the data
@@ -217,8 +217,8 @@ def main():
 
     pci_config = list(range(1, 25))
     beam_config = [1, 2, 3, 4, 5, 6, 7, 8]
-    pci_config = [20]
-    beam_config = [8]
+    # pci_config = [20]
+    # sbeam_config = [None]
 
     for n_pcis in pci_config:
         for n_beams in beam_config:
