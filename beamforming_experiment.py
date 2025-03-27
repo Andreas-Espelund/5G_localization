@@ -213,11 +213,11 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 10
+    n_runs = 15
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     operator_choice = [1, 10, 50, 88]
-    selected_campaigns = list(range(1, 21))
+    selected_campaigns = list(range(1, 31))
 
     # load the data
 
@@ -229,7 +229,7 @@ def main():
     config_params = []
 
     pci_config = [None, 1]
-    beam_config = [None, 1]
+    beam_config = [None, 1, 4]
 
     for op in operator_choice:
         for n_pcis in pci_config:
