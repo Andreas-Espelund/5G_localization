@@ -164,20 +164,23 @@ def run_weighted_coverage(
     df_tp, df_rp = dataset_tp_rp_split(tmp, 0.3, random_seed)
 
     if not n_clusters > 0:
-        start_time = time.time()
+        start_time = time.perf_counter()
         results = process_test_points(
             df_tp, df_rp, unique_npcis, rf_param, k_max, use_pca=use_pca
         )
-        end_time = time.time()
+        end_time = time.perf_counter()
 
-        runtime = (end_time - start_time) * 1000 / df_tp.shape[0]
+        runtime = ((end_time - start_time) / df_tp.shape[0]) * 1000
+
         return results, runtime
 
     rf_model = cluster_data_and_train_random_forest(
         df_rp, n_clusters, unique_npcis, cluster_rf_param, random_seed
     )
 
-    start_time = time.time()  # don't include model training in the online stage timing
+    start_time = (
+        time.perf_counter()
+    )  # don't include model training in the online stage timing
     result = process_clusters(
         df_tp,
         df_rp,
@@ -188,9 +191,9 @@ def run_weighted_coverage(
         rf_model,
         use_pca=use_pca,
     )
-    end_time = time.time()
+    end_time = time.perf_counter()
 
-    runtime = (end_time - start_time) * 1000 / df_tp.shape[0]
+    runtime = ((end_time - start_time) / df_tp.shape[0]) * 1000
 
     return result, runtime
 
