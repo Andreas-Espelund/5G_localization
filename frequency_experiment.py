@@ -175,7 +175,7 @@ def main():
     clustering_rf_param = RF_PARAM_5G.RSRQ
     n_clusters = 5
     operator_choice = [1, 10, 50, 88]
-    selected_campaigns = None
+    selected_campaigns = list(range(0, 20))
     use_best_beams = False
 
     start_time = time.time()
