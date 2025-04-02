@@ -116,7 +116,7 @@ def run_experiment(
     results = []
 
     for op in operator_choice:
-        tmp = df.copy(deep=True)
+        tmp = filter_dataframe(df=df.copy(), operators=[op])
 
         config = get_config("frequency_map.json", str(op))
         nr_arfcn_frequecny_map = {int(k): int(v) for k, v in config.items()}
@@ -124,9 +124,7 @@ def run_experiment(
         replace_nr_arfcns(tmp, nr_arfcn_frequecny_map)
         for nr in frequency_choice:
             if nr != 0:
-                filtered_df = filter_dataframe(
-                    df=tmp.copy(), freqs=[nr], operators=[op]
-                )
+                filtered_df = filter_dataframe(df=tmp.copy(), freqs=[nr])
                 print(f"num items after filter {len(filtered_df)}")
             else:
                 filtered_df = tmp.copy()
@@ -153,15 +151,16 @@ def run_experiment(
                 ]
                 for future in futures:
                     data, runtime = future.result()
-                    means = data.mean(axis=0)
-                    err, comp = means[0], means[1]
+                    extra = np.array([op, nr, runtime])
+                    extra = np.tile(extra, (data.shape[0], 1))
+                    res = np.concatenate([extra, data], axis=1)
 
-                    results.append((op, nr, err, comp, runtime))
+                    results.extend(res)
             print(f"\r✅ {nr} completed                                           ")
 
     results_df = pd.DataFrame(
         results,
-        columns=["operator", "frequency", "error", "complexity", "runtime"],
+        columns=["operator", "frequency", "runtime", "error", "complexity"],
     )
 
     return results_df
