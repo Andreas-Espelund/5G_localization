@@ -1,0 +1,16 @@
+{
+    "wknn_k": 2,
+    "rf_param": "rsrq",
+    "cluster_rf_param": "rsrq",
+    "operator_choice": [
+        1,
+        10,
+        50,
+        88
+    ],
+    "n_clusters": 5,
+    "n_runs": 20,
+    "campaigns": "all",
+    "runtime": 4529.474192142487,
+    "use_best_beams": false
+}
