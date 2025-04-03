@@ -83,7 +83,7 @@ def main():
         lambda x: x.drop(columns=matrix_cols_to_drop)
     )
 
-    selected_campaigns = list(range(1, 30))
+    selected_campaigns = list(range(1, 20))
     # Data filtering
     df = filter_dataframe(
         df=df,
@@ -102,20 +102,17 @@ def main():
 
     # params = [RF_PARAM_5G.RSRQ, RF_PARAM_5G.RSSI, RF_PARAM_5G.RSRP, RF_PARAM_5G.SINR]
     params = [RF_PARAM_5G.RSRQ]
-    cluster_range = range(2, 15)
-    n_runs = 10
+    cluster_range = range(2, 21)
+    n_runs = 5
     data = []
 
-    with ThreadPoolExecutor() as executor:
+    with ThreadPoolExecutor(max_workers=n_runs) as executor:
         futures = []
         for param in params:
             for n_clusters in cluster_range:
                 for run in range(n_runs):
                     start = time.time()
-                    print(
-                        f"Parameter: {param}, n_clusters: {n_clusters} run: {run+1}/ {n_runs}",
-                        end="",
-                    )
+
                     future = executor.submit(
                         run_test,
                         df=df,
@@ -132,7 +129,9 @@ def main():
             res["run"] = run
             data.append(res)
             end = time.time()
-            print(f" [{end-start:.0f} s]")
+            print(
+                f"Parameter: {param.value}, n_clusters: {n_clusters} run: {run+1}/ {n_runs}  [{end-start:.0f} s]"
+            )
 
     # Create a DataFrame from the collected data
     res_df = pd.DataFrame(data)
