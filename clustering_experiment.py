@@ -18,7 +18,10 @@ from scripts.weighted_coverage import run_weighted_coverage
 
 
 def load_data(
-    selected_campaigns: list[int], rf_param: RF_PARAM_5G, use_beam_filter: bool = False
+    selected_campaigns: list[int],
+    rf_param: RF_PARAM_5G,
+    operator_choice: list[int],
+    use_beam_filter: bool = False,
 ) -> pd.DataFrame:
     filename = "5G_data_2023.mat"
 
@@ -37,7 +40,7 @@ def load_data(
     # Data filtering
     df = filter_dataframe(
         df=df,
-        operators=[10],
+        operators=operator_choice,
         campaigns=selected_campaigns,
     )
     if use_beam_filter:
@@ -103,7 +106,7 @@ def run_experiment(
 
     for n_clusters in cluster_range:
         # Use ProcessPoolExecutor to parallelize the runs
-        with ProcessPoolExecutor(max_workers=4) as executor:
+        with ProcessPoolExecutor(max_workers=20) as executor:
             futures = [
                 executor.submit(
                     single_run,
@@ -137,38 +140,28 @@ def main():
     # Parameters
     n_runs = 20
     k_wknn = 2
-    rf_param = RF_PARAM_5G.RSRQ
-    clustering_rf_param = RF_PARAM_5G.SINR
     cluster_range = range(1, 21)
-    operator_choice = [10]
+    operator_choice = [1, 10, 50, 88]
     selected_campaigns = list(range(1, 31))
 
-    selected_params = [
-        RF_PARAM_5G.RSRQ,
-    ]
+    rf_param = RF_PARAM_5G.RSRQ
+
     start_time = time.time()
 
-    results_error = {}
-    results_complexity = {}
-    for param in selected_params:
-        df, random_seeds = load_data(selected_campaigns, param, False)
+    df, random_seeds = load_data(
+        selected_campaigns, rf_param, operator_choice=operator_choice
+    )
 
-        errors_df, complexity_df, runtime_df = run_experiment(
-            df,
-            random_seeds,
-            n_runs,
-            k_wknn,
-            rf_param,
-            param,
-            cluster_range,
-            operator_choice,
-        )
-
-        errors_df["param"] = param.value
-        complexity_df["param"] = param.value
-
-        results_error[param] = errors_df
-        results_complexity[param] = complexity_df
+    errors_df, complexity_df, runtime_df = run_experiment(
+        df,
+        random_seeds,
+        n_runs,
+        k_wknn,
+        rf_param,
+        rf_param,
+        cluster_range,
+        operator_choice,
+    )
 
     end_time = time.time()
     total_time = end_time - start_time
@@ -177,7 +170,6 @@ def main():
     config = {
         "wknn_k": k_wknn,
         "rf_param": rf_param.value,
-        "cluster_rf_param": list(map(lambda x: x.value, selected_params)),
         "operator_choice": operator_choice,
         "cluster_range": list(cluster_range),
         "n_runs": n_runs,
@@ -185,19 +177,10 @@ def main():
         "runtime": total_time,
     }
 
-    error_result_df = pd.DataFrame()
-    for k, v in results_error.items():
-        error_result_df = pd.concat([error_result_df, v], ignore_index=True, axis=0)
-
-    complexity_result_df = pd.DataFrame()
-    for k, v in results_complexity.items():
-        complexity_result_df = pd.concat(
-            [complexity_result_df, v], ignore_index=True, axis=0
-        )
-
     data = {
-        "errors": error_result_df,
-        "complexity": complexity_result_df,
+        "errors": errors_df,
+        "complexity": complexity_df,
+        "runtime": runtime_df,
     }
 
     save_experiment_result("clustering_experiment", config, data)
