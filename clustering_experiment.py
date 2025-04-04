@@ -55,7 +55,7 @@ def single_run(
     print(
         f"🔄 Running for cluster {n_clusters} ({i + 1}/{n_runs} runs) on PID: {os.getpid()}"
     )
-    _, errors, complexity, runtime = run_weighted_coverage(
+    result, runtime = run_weighted_coverage(
         df=filtered_df,
         rf_param=rf_param,
         cluster_rf_param=rf_param,
@@ -64,7 +64,10 @@ def single_run(
         random_seed=random_seed,
         n_clusters=n_clusters,
     )
-    return errors.mean(), complexity, runtime
+
+    means = result.mean(axis=0)
+
+    return means[0], means[1], runtime
 
 
 def run_experiment(
@@ -100,7 +103,7 @@ def run_experiment(
 
     for n_clusters in cluster_range:
         # Use ProcessPoolExecutor to parallelize the runs
-        with ProcessPoolExecutor(max_workers=25) as executor:
+        with ProcessPoolExecutor(max_workers=4) as executor:
             futures = [
                 executor.submit(
                     single_run,
@@ -132,13 +135,13 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 5
+    n_runs = 20
     k_wknn = 2
-    rf_param = RF_PARAM_5G.SINR
+    rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.SINR
-    cluster_range = range(1, 20)
+    cluster_range = range(1, 21)
     operator_choice = [10]
-    selected_campaigns = list(range(1, 21))
+    selected_campaigns = list(range(1, 31))
 
     selected_params = [
         RF_PARAM_5G.RSRQ,
@@ -155,7 +158,7 @@ def main():
             random_seeds,
             n_runs,
             k_wknn,
-            rf_param if param is RF_PARAM_5G.DUMMY else param,
+            rf_param,
             param,
             cluster_range,
             operator_choice,

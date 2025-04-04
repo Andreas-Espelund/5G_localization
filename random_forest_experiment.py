@@ -3,10 +3,11 @@ from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
+from sklearn.cluster import KMeans
 from sklearn.metrics import accuracy_score, recall_score, f1_score
 from sklearn.model_selection import cross_val_score
 
-from scripts.clustering import train_random_forest, train_kmeans
+from scripts.clustering import train_random_forest
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
 from scripts.data_writer import save_experiment_result
@@ -38,9 +39,10 @@ def evaluate_model(rf_model, X_test, y_test):
 
 
 def run_test(df: pd.DataFrame, n_clusters: int, rf_param: RF_PARAM_5G, random: int):
-    kmeans, cluster_labels = train_kmeans(
-        df, n_clusters=n_clusters, rf_param=rf_param, random_state=random
-    )
+
+    kmeans = KMeans(n_clusters=n_clusters, random_state=random)
+    df_features = df[["lat", "lng"]].values
+    cluster_labels = kmeans.fit_predict(df_features)
 
     df["cluster"] = cluster_labels
     pcis = extract_unique_npcis(df["measurements_matrix"])
@@ -103,7 +105,7 @@ def main():
     # params = [RF_PARAM_5G.RSRQ, RF_PARAM_5G.RSSI, RF_PARAM_5G.RSRP, RF_PARAM_5G.SINR]
     params = [RF_PARAM_5G.RSRQ]
     cluster_range = range(2, 21)
-    n_runs = 5
+    n_runs = 1
     data = []
 
     with ThreadPoolExecutor(max_workers=n_runs) as executor:

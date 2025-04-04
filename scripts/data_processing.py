@@ -2,7 +2,6 @@ import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
 
-from scripts.matrix_operations import create_point_matrix
 from scripts.utils import RF_PARAM_5G
 
 
@@ -16,10 +15,10 @@ def cluster_data_and_train_random_forest(
     kmeans = KMeans(n_clusters=n_clusters, random_state=random_seed)
 
     #  === Cluster the data points using KMeans ===
-    if rf_param is None:
-        features = df[["lat", "lng"]].values
-    else:
-        features, _ = create_point_matrix(df, unique_npcis, rf_param)
+    # if rf_param is None:
+    features = df[["lat", "lng"]].values
+    # else:
+    #    features, _ = create_point_matrix(df, unique_npcis, rf_param)
 
     df["cluster"] = kmeans.fit_predict(features)
 
