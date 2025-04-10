@@ -19,7 +19,6 @@ from scripts.weighted_coverage import run_weighted_coverage
 def load_data(
     selected_campaigns: list[int],
     operator_choice: list[int],
-    rf_params: list[RF_PARAM_5G],
 ):
     filename = "5G_data_2023.mat"
 
@@ -136,16 +135,15 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 20
-    k_wknn = 20
+    n_runs = 10
+    k_wknn = 10
     rf_param = RF_PARAM_5G.SINR
-    clustering_rf_param = RF_PARAM_5G.SINR
     operator_choice = [1, 10, 50, 88]
-    selected_campaigns = list(range(1, 41))
+    selected_campaigns = list(range(1, 21))
 
     params = [RF_PARAM_5G.SINR, RF_PARAM_5G.RSRQ, RF_PARAM_5G.RSRP, RF_PARAM_5G.RSSI]
 
-    df, random_seeds = load_data(selected_campaigns, operator_choice, rf_param)
+    df, random_seeds = load_data(selected_campaigns, operator_choice)
 
     start_time = time.time()
 

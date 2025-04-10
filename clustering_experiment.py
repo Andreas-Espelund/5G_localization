@@ -106,7 +106,7 @@ def run_experiment(
 
     for n_clusters in cluster_range:
         # Use ProcessPoolExecutor to parallelize the runs
-        with ProcessPoolExecutor(max_workers=20) as executor:
+        with ProcessPoolExecutor(max_workers=2) as executor:
             futures = [
                 executor.submit(
                     single_run,
@@ -138,11 +138,11 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 20
+    n_runs = 10
     k_wknn = 2
     cluster_range = range(1, 21)
     operator_choice = [1, 10, 50, 88]
-    selected_campaigns = list(range(1, 31))
+    selected_campaigns = list(range(1, 21))
 
     rf_param = RF_PARAM_5G.RSRQ
 

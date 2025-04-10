@@ -151,11 +151,14 @@ def run_experiment(
                 ]
                 for future in futures:
                     data, runtime = future.result()
-                    extra = np.array([op, nr, runtime])
-                    extra = np.tile(extra, (data.shape[0], 1))
-                    res = np.concatenate([extra, data], axis=1)
+                    # extra = np.array([op, nr, runtime])
+                    # extra = np.tile(extra, (data.shape[0], 1))
+                    # res = np.concatenate([extra, data], axis=1)
+                    # results.extend(res)
 
-                    results.extend(res)
+                    # dont store all TPs, only mean over runs
+                    means = data.mean(axis=0)
+                    results.append([op, nr, runtime, means[0], means[1]])
             print(f"\r✅ {nr} completed                                           ")
 
     results_df = pd.DataFrame(
