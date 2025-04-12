@@ -101,25 +101,28 @@ def run_experiment(
     results = []
     # Use ProcessPoolExecutor to parallelize the runs
     for k in k_range:
-        with ProcessPoolExecutor(max_workers=15) as executor:
+        with ProcessPoolExecutor(max_workers=10) as executor:
             futures = [
-                executor.submit(
-                    single_run,
+                (
+                    executor.submit(
+                        single_run,
+                        i,
+                        df,
+                        rf_param,
+                        unique_npcis,
+                        random_seeds[i],
+                        0,
+                        k,
+                        n_runs,
+                    ),
                     i,
-                    df,
-                    rf_param,
-                    unique_npcis,
-                    random_seeds[i],
-                    0,
-                    k,
-                    n_runs,
                 )
                 for i in range(n_runs)
             ]
-            for future in futures:
-                res, runtime = future.result()
+            for future, run in futures:
+                res, runtime, num_tps = future.result()
 
-                data = np.array([rf_param.value, k, runtime])
+                data = np.array([rf_param.value, k, runtime, run])
                 data_2d = np.tile(data, (res.shape[0], 1))
 
                 res = np.concatenate([data_2d, res], axis=1)
@@ -129,13 +132,14 @@ def run_experiment(
         print(f"\r✅ k={k} completed                                           ")
 
     return pd.DataFrame(
-        results, columns=["rf_param", "wknn_k", "runtime", "errors", "complexity"]
+        results,
+        columns=["rf_param", "wknn_k", "runtime", "run", "errors", "complexity"],
     )
 
 
 def main():
     # Parameters
-    n_runs = 10
+    n_runs = 20
     k_wknn = 10
     rf_param = RF_PARAM_5G.SINR
     operator_choice = [1, 10, 50, 88]
