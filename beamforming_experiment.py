@@ -5,24 +5,25 @@ from concurrent.futures import ProcessPoolExecutor
 import numpy as np
 import pandas as pd
 
-from scripts.beamforming import get_best_beam, matrix_filter
+from scripts.beamforming import matrix_filter
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
 from scripts.data_writer import save_experiment_result
-from scripts.matrix_operations import create_point_matrix, compute_weights
 from scripts.utils import (
     NETWORK_TYPE,
     RF_PARAM_5G,
     extract_unique_npcis,
-    dataset_tp_rp_split,
+    get_config,
 )
-from scripts.weighted_coverage import wknn_one_tp_row, wknn_one
+from scripts.weighted_coverage import run_weighted_coverage
 
 
 def load_data(
-    selected_campaigns: list[int], rf_param: RF_PARAM_5G, operator_choice: list[int]
-):
-
+    selected_campaigns: list[int],
+    rf_param: RF_PARAM_5G,
+    operator_choice: list[int],
+    bands: list[int],
+) -> pd.DataFrame:
     filename = "5G_data_2023.mat"
 
     # Series of random seeds for reproducability
@@ -37,10 +38,21 @@ def load_data(
         lambda x: x.drop(columns=matrix_cols_to_drop)
     )
 
+    band_config = get_config("band_map.json")
+
+    selected_arfcns = [
+        int(arfcn)
+        for mapping in band_config.values()
+        for arfcn, band in mapping.items()
+        if band in bands
+    ]
+
     # Data filtering
     df = filter_dataframe(
         df=df,
         operators=operator_choice,
+        campaigns=selected_campaigns,
+        freqs=selected_arfcns,
         include_columns=[
             "pci",
             "beam_index",
@@ -48,21 +60,110 @@ def load_data(
             "operator_id",
             rf_param.value,
         ],
-        campaigns=selected_campaigns,
     )
+
     return df, random_seeds
 
 
-def beam_matching_strategy_2(
-    df: pd.DataFrame,
+def single_run(
+    i, filtered_df, rf_param, unique_npcis, random_seed, n_clusters, k_wknn, n_runs
+):
+    print(
+        f"🔄 Running for cluster {n_clusters} ({i + 1}/{n_runs} runs) on PID: {os.getpid()}"
+    )
+    result, runtime, n_tps = run_weighted_coverage(
+        df=filtered_df,
+        rf_param=rf_param,
+        cluster_rf_param=rf_param,
+        k_max=k_wknn,
+        unique_npcis=unique_npcis,
+        random_seed=random_seed,
+        n_clusters=n_clusters,
+    )
+
+    return result, runtime, n_tps, i
+
+
+def run_experiment_operators(
+    df_orig: pd.DataFrame,
+    random_seeds: np.ndarray,
+    n_runs: int,
     rf_param: RF_PARAM_5G,
-    random: int,
-    run: int,
     n_best_pcis: int,
     n_best_beams: int,
-) -> np.ndarray:
+    wknn_k: int,
+    n_clusters: int,
+):
+    if n_best_pcis:
+        n_best_pcis = int(n_best_pcis)
+    if n_best_beams:
+        n_best_beams = int(n_best_beams)
 
-    df = df.sample(frac=1, random_state=random).reset_index(drop=True)
+    data = []
+
+    for op in [1, 10, 50, 88]:
+        df = filter_dataframe(df_orig.copy(deep=True), operators=[op])
+
+        df.loc[:, "measurements_matrix"] = df.loc[:, "measurements_matrix"].apply(
+            lambda x: matrix_filter(
+                x,
+                rf_param,
+                include_n_best_pcis=n_best_pcis,
+                include_n_best_beams=n_best_beams,
+            )
+        )
+
+        unique_npcis = extract_unique_npcis(df["measurements_matrix"])
+
+        # Use ProcessPoolExecutor to parallelize the runs
+        with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
+            futures = [
+                executor.submit(
+                    single_run,
+                    i,
+                    df,
+                    rf_param,
+                    unique_npcis,
+                    random_seeds[i],
+                    n_clusters,
+                    wknn_k,
+                    n_runs,
+                )
+                for i in range(n_runs)
+            ]
+            for future in futures:
+                result, runtime, n_tps, run = future.result()
+
+                extra = np.array([runtime, n_tps, op, run])
+                extra = np.tile(extra, (result.shape[0], 1))
+                res = np.concatenate([result, extra], axis=1)
+
+                data.extend(res)
+
+    data_df = pd.DataFrame(
+        data,
+        columns=["errors", "complexity", "runtime", "n_tps", "mnc", "run"],
+    )
+
+    return data_df
+
+
+def run_experiment(
+    df: pd.DataFrame,
+    random_seeds: np.ndarray,
+    n_runs: int,
+    rf_param: RF_PARAM_5G,
+    n_best_pcis: int,
+    n_best_beams: int,
+    wknn_k: int,
+    n_clusters: int,
+):
+    if n_best_pcis:
+        n_best_pcis = int(n_best_pcis)
+    if n_best_beams:
+        n_best_beams = int(n_best_beams)
+
+    data = []
 
     df.loc[:, "measurements_matrix"] = df.loc[:, "measurements_matrix"].apply(
         lambda x: matrix_filter(
@@ -73,139 +174,36 @@ def beam_matching_strategy_2(
         )
     )
 
-    pcis = extract_unique_npcis(df["measurements_matrix"])
-
-    df_tp, df_rp = dataset_tp_rp_split(df, 0.3, random)
-
-    start = time.perf_counter()
-
-    m_rp, idx_rp = create_point_matrix(df_rp, pcis, rf_param)
-
-    m_tp, idx_tp = create_point_matrix(df_tp, pcis, rf_param)
-
-    W, idx_sort = compute_weights(m_rp, idx_rp, m_tp, idx_tp)
-
-    _, errors = wknn_one(df_tp, df_rp, idx_sort, W, 2)
-
-    runtime = time.perf_counter() - start
-    complexity = m_rp.shape[0] * m_rp.shape[1]
-
-    data = np.array(
-        [
-            errors,
-            np.repeat(complexity, errors.shape[0]),
-            np.repeat(run, errors.shape[0]),
-            np.repeat(runtime, errors.shape[0]),
-        ]
-    )
-    print(f"Run {run} complete")
-    return data.T
-
-
-def beam_matching_strategy(
-    df: pd.DataFrame,
-    rf_param: RF_PARAM_5G,
-    random: int,
-    run: int,
-    n_best_pcis: int,
-    n_best_beams: int,
-) -> np.ndarray:
-    # get the best beam for each point
-    df["best_beam"] = df["measurements_matrix"].apply(
-        lambda x: get_best_beam(x, rf_param)
-    )
-
     unique_npcis = extract_unique_npcis(df["measurements_matrix"])
 
-    df_tp, df_rp = dataset_tp_rp_split(df, 0.3, random)
-
-    df_rp.loc[:, "measurements_matrix"] = df_rp.loc[:, "measurements_matrix"].apply(
-        lambda x: matrix_filter(
-            x,
-            rf_param,
-            include_n_best_pcis=n_best_pcis,
-            include_n_best_beams=n_best_beams,
-        )
-    )
-
-    start_time = time.perf_counter()
-
-    m_rp, idx_rp = create_point_matrix(df_rp, unique_npcis, rf_param)
-
-    data = []
-    total = len(df_tp)
-    for i, (_, tp_row) in enumerate(df_tp.iterrows(), 1):
-        tp = pd.DataFrame([tp_row])
-
-        tp.loc[:, "measurements_matrix"] = tp.loc[:, "measurements_matrix"].apply(
-            lambda x: matrix_filter(
-                x,
-                rf_param,
-                include_n_best_pcis=n_best_pcis,
-                include_n_best_beams=n_best_beams,
-            )
-        )
-
-        # Create the point matrix for the test point
-        m_tp, idx_tp = create_point_matrix(tp, unique_npcis, rf_param)
-
-        # Compute weights only if we have matching RPs
-        W, idx_sort = compute_weights(m_rp, idx_rp, m_tp, idx_tp)
-        _, errors = wknn_one_tp_row(tp, df_rp, idx_sort, W, 2)
-
-        complexity = m_rp.shape[0] * m_rp.shape[1] if len(m_rp.shape) == 2 else None
-
-        data.append([errors, complexity, run])
-
-    end_time = time.perf_counter()
-    runtime = end_time - start_time
-
-    # Convert to NumPy array and add the runtime as a new column
-    data = np.array(data)
-    runtime_column = np.full((data.shape[0], 1), runtime)
-    data_with_runtime = np.hstack((data, runtime_column))
-
-    print(f"\tRun {run} complete")
-    return data_with_runtime
-
-
-def run_experiment(
-    df: pd.DataFrame,
-    random_seeds: np.ndarray,
-    n_runs: int,
-    rf_param: RF_PARAM_5G,
-    n_best_pcis: int,
-    n_best_beams: int,
-):
-    if n_best_pcis:
-        n_best_pcis = int(n_best_pcis)
-    if n_best_beams:
-        n_best_beams = int(n_best_beams)
-
-    data = []
-
-    num_processors = os.cpu_count()
     # Use ProcessPoolExecutor to parallelize the runs
-    with ProcessPoolExecutor(max_workers=2) as executor:
+    with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
         futures = [
             executor.submit(
-                beam_matching_strategy_2,
+                single_run,
+                i,
                 df,
                 rf_param,
+                unique_npcis,
                 random_seeds[i],
-                i,
-                n_best_pcis,
-                n_best_beams,
+                n_clusters,
+                wknn_k,
+                n_runs,
             )
             for i in range(n_runs)
         ]
         for future in futures:
-            res = future.result()
+            result, runtime, n_tps, run = future.result()
+
+            extra = np.array([runtime, n_tps, 0, run])
+            extra = np.tile(extra, (result.shape[0], 1))
+            res = np.concatenate([result, extra], axis=1)
+
             data.extend(res)
 
     data_df = pd.DataFrame(
         data,
-        columns=["errors", "complexity", "run", "runtime"],
+        columns=["errors", "complexity", "runtime", "n_tps", "mnc", "run"],
     )
 
     return data_df
@@ -213,28 +211,35 @@ def run_experiment(
 
 def main():
     # Parameters
-    n_runs = 15
+    n_runs = 5
     k_wknn = 2
+    n_clusters = 10
     rf_param = RF_PARAM_5G.RSRQ
     operator_choice = [1, 10, 50, 88]
-    selected_campaigns = list(range(1, 31))
+    selected_campaigns = list(range(1, 21))
+    bands = [78]
 
     # load the data
 
-    df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
+    df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice, bands)
 
     start_time = time.time()
 
     # Basic configuration
     config_params = []
 
-    pci_config = [None, 1]
-    beam_config = [None, 1, 4]
+    pci_configs = range(1, 21)
+    beam_configs = range(1, 9)
 
-    for op in operator_choice:
-        for n_pcis in pci_config:
-            for n_beams in beam_config:
-                config_params.append([n_pcis, n_beams, op])
+    # pci_configs = [1, None]
+    # beam_configs = [1, None]
+
+    for n_pcis in pci_configs:
+        for n_beams in beam_configs:
+            config_params.append([n_pcis, n_beams])
+
+    # for n_beams in beam_configs:
+    #     config_params.append([None, n_beams])
 
     results_df = pd.DataFrame()
 
@@ -243,15 +248,12 @@ def main():
     for index, conf in enumerate(config_params):
         n_best_pcis = conf[0]
         n_best_beams = conf[1]
-        operator = conf[2]
         # baseline measurement
 
         run_start = time.time()
         print(f"🔄 Running confing {index + 1} / {total_configs}")
 
         tmp = df.copy(deep=True)
-
-        filter_dataframe(tmp, operators=[operator])
 
         data_df = run_experiment(
             tmp,
@@ -260,6 +262,8 @@ def main():
             rf_param,
             n_best_pcis=n_best_pcis,
             n_best_beams=n_best_beams,
+            n_clusters=n_clusters,
+            wknn_k=k_wknn,
         )
         run_end = time.time()
         print(
@@ -268,14 +272,13 @@ def main():
 
         data_df["n_best_pcis"] = n_best_pcis
         data_df["n_best_beams"] = n_best_beams
-        data_df["operator"] = operator
 
         results_df = pd.concat([results_df, data_df], ignore_index=True, axis=0)
 
     end_time = time.time()
     total_time = end_time - start_time
 
-    print(f"Total runtime was {total_time} seconds")
+    print(f"Total runtime was {total_time} seconds ({total_time / 60} minutes)")
 
     config = {
         "wknn_k": k_wknn,
@@ -283,11 +286,9 @@ def main():
         "operator_choice": operator_choice,
         "n_runs": n_runs,
         "campaigns": selected_campaigns,
+        "n_clusters": n_clusters,
         "runtime": total_time,
     }
-
-    print("\n================ RESULTS ================\n")
-    print(results_df["errors"].to_numpy())
 
     data = {"data": results_df}
 

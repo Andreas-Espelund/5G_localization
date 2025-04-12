@@ -58,7 +58,7 @@ def single_run(
     print(
         f"🔄 Running for cluster {n_clusters} ({i + 1}/{n_runs} runs) on PID: {os.getpid()}"
     )
-    result, runtime = run_weighted_coverage(
+    result, runtime, n_tps = run_weighted_coverage(
         df=filtered_df,
         rf_param=rf_param,
         cluster_rf_param=rf_param,
@@ -70,7 +70,7 @@ def single_run(
 
     means = result.mean(axis=0)
 
-    return means[0], means[1], runtime
+    return means[0], means[1], runtime, n_tps
 
 
 def run_experiment(
@@ -106,7 +106,7 @@ def run_experiment(
 
     for n_clusters in cluster_range:
         # Use ProcessPoolExecutor to parallelize the runs
-        with ProcessPoolExecutor(max_workers=2) as executor:
+        with ProcessPoolExecutor(max_workers=4 if n_clusters > 2 else 2) as executor:
             futures = [
                 executor.submit(
                     single_run,
@@ -122,7 +122,7 @@ def run_experiment(
                 for i in range(n_runs)
             ]
             for future in futures:
-                errors, complexity, runtime = future.result()
+                errors, complexity, runtime, n_tps = future.result()
                 errors_dict[n_clusters].append(errors)
                 complexity_dict[n_clusters].append(complexity)
                 runtime_dict[n_clusters].append(runtime)
@@ -133,7 +133,7 @@ def run_experiment(
     complexity_df = pd.DataFrame(complexity_dict)
     runtime_df = pd.DataFrame(runtime_dict)
 
-    return errors_df, complexity_df, runtime_df
+    return errors_df, complexity_df, runtime_df, n_tps
 
 
 def main():
@@ -152,7 +152,7 @@ def main():
         selected_campaigns, rf_param, operator_choice=operator_choice
     )
 
-    errors_df, complexity_df, runtime_df = run_experiment(
+    errors_df, complexity_df, runtime_df, n_tps = run_experiment(
         df,
         random_seeds,
         n_runs,
@@ -175,6 +175,7 @@ def main():
         "n_runs": n_runs,
         "campaigns": selected_campaigns,
         "runtime": total_time,
+        "n_tps": n_tps,
     }
 
     data = {

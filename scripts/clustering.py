@@ -3,8 +3,7 @@ from sklearn.cluster import KMeans, DBSCAN
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 
-from scripts.matrix_operations import create_point_matrix
-from scripts.utils import RF_PARAM_5G, extract_unique_npcis
+from scripts.utils import RF_PARAM_5G
 
 
 def train_dbscan(features: pd.DataFrame, eps: float, min_samples: int):
@@ -32,17 +31,11 @@ def train_dbscan(features: pd.DataFrame, eps: float, min_samples: int):
 #     return kmeans, cluster_labels
 
 
-def train_kmeans(
-    df: pd.DataFrame, rf_param: RF_PARAM_5G, n_clusters: int, random_state: int
-):
-    unique_pcis = extract_unique_npcis(df["measurements_matrix"])
-    df_features, _ = create_point_matrix(
-        df,
-        unique_npcis=unique_pcis,
-        rf_param=rf_param,
-    )
+def train_kmeans(df: pd.DataFrame, n_clusters: int, random_state: int):
+    df_features = df[["lat", "lng"]].values
     kmeans = KMeans(n_clusters=n_clusters, random_state=random_state)
     cluster_labels = kmeans.fit_predict(df_features)
+    df["cluster"] = cluster_labels
     return kmeans, cluster_labels
 
 

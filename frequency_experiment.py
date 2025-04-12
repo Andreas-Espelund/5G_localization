@@ -19,8 +19,10 @@ from scripts.weighted_coverage import run_weighted_coverage
 
 
 def load_data(
-    selected_campaigns: list[int], rf_param: RF_PARAM_5G, operator_choice: list[int]
-):
+    selected_campaigns: list[int],
+    rf_param: RF_PARAM_5G,
+    operator_choice: list[int],
+) -> pd.DataFrame:
     filename = "5G_data_2023.mat"
 
     # Series of random seeds for reproducability
@@ -39,6 +41,7 @@ def load_data(
     df = filter_dataframe(
         df=df,
         operators=operator_choice,
+        campaigns=selected_campaigns,
         include_columns=[
             "pci",
             "beam_index",
@@ -46,7 +49,6 @@ def load_data(
             "operator_id",
             rf_param.value,
         ],
-        campaigns=selected_campaigns,
     )
 
     return df, random_seeds
@@ -65,7 +67,7 @@ def single_run(
     use_beam_matching,
 ):
     print(f"🔄 Running for nr_arfcn {nr} ({i + 1}/{n_runs} runs) on PID: {os.getpid()}")
-    result, runtime = run_weighted_coverage(
+    result, runtime, num_tps = run_weighted_coverage(
         df=filtered_df,
         rf_param=rf_param,
         cluster_rf_param=rf_param,
@@ -75,7 +77,7 @@ def single_run(
         n_clusters=n_clusters,
         use_pca=False,
     )
-    return result, runtime
+    return result, runtime, num_tps
 
 
 def run_experiment(
@@ -132,7 +134,7 @@ def run_experiment(
             unique_npcis = extract_unique_npcis(filtered_df["measurements_matrix"])
 
             # Use ProcessPoolExecutor to parallelize the runs
-            with ProcessPoolExecutor(max_workers=20) as executor:
+            with ProcessPoolExecutor(max_workers=1) as executor:
                 futures = [
                     executor.submit(
                         single_run,
@@ -150,7 +152,7 @@ def run_experiment(
                     for i in range(n_runs)
                 ]
                 for future in futures:
-                    data, runtime = future.result()
+                    data, runtime, num_tps = future.result()
                     # extra = np.array([op, nr, runtime])
                     # extra = np.tile(extra, (data.shape[0], 1))
                     # res = np.concatenate([extra, data], axis=1)
@@ -158,12 +160,12 @@ def run_experiment(
 
                     # dont store all TPs, only mean over runs
                     means = data.mean(axis=0)
-                    results.append([op, nr, runtime, means[0], means[1]])
+                    results.append([op, nr, runtime, num_tps, means[0], means[1]])
             print(f"\r✅ {nr} completed                                           ")
 
     results_df = pd.DataFrame(
         results,
-        columns=["operator", "frequency", "runtime", "error", "complexity"],
+        columns=["operator", "frequency", "runtime", "num_tps", "error", "complexity"],
     )
 
     return results_df
@@ -175,9 +177,9 @@ def main():
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
-    n_clusters = 5
+    n_clusters = 10
     operator_choice = [1, 10, 50, 88]
-    selected_campaigns = list(range(0, 20))
+    selected_campaigns = list(range(0, 21))
     use_best_beams = False
 
     start_time = time.time()

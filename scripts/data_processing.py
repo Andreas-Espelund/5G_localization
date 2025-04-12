@@ -7,6 +7,7 @@ from scripts.utils import RF_PARAM_5G
 
 def cluster_data_and_train_random_forest(
     df: pd.DataFrame,
+    df_rp: pd.DataFrame,
     n_clusters: int,
     unique_npcis,
     rf_param: RF_PARAM_5G,
@@ -25,7 +26,7 @@ def cluster_data_and_train_random_forest(
     #  === Train Random Forest Classifier ===
 
     rf_model = train_random_forest(
-        df=df,
+        df=df_rp,
         unique_npcis=unique_npcis,
         rf_param=rf_param,
         random_seed=random_seed * 42,

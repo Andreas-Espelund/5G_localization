@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from sklearn.decomposition import PCA
 
-from scripts.data_processing import cluster_data_and_train_random_forest
+from scripts.clustering import train_kmeans, train_random_forest
 from scripts.matrix_operations import (
     create_point_matrix,
     compute_weights,
@@ -164,6 +164,9 @@ def run_weighted_coverage(
 
     tmp = df.sample(frac=1, random_state=random_seed).reset_index(drop=True)
 
+    if n_clusters > 0:
+        train_kmeans(tmp, n_clusters, random_seed)
+
     df_tp, df_rp = dataset_tp_rp_split(tmp, 0.3, random_seed)
 
     if not n_clusters > 0:
@@ -173,13 +176,11 @@ def run_weighted_coverage(
         )
         end_time = time.perf_counter()
 
-        runtime = ((end_time - start_time) / df_tp.shape[0]) * 1000
+        runtime = end_time - start_time
 
-        return results, runtime
+        return results, runtime, df_tp.shape[0]
 
-    rf_model = cluster_data_and_train_random_forest(
-        df_rp, n_clusters, unique_npcis, cluster_rf_param, random_seed
-    )
+    rf_model = train_random_forest(df_rp, unique_npcis, rf_param, 100, random_seed)
 
     start_time = (
         time.perf_counter()
@@ -196,9 +197,9 @@ def run_weighted_coverage(
     )
     end_time = time.perf_counter()
 
-    runtime = ((end_time - start_time) / df_tp.shape[0]) * 1000
+    runtime = end_time - start_time
 
-    return result, runtime
+    return result, runtime, df_tp.shape[0]
 
 
 def process_clusters(
@@ -214,9 +215,10 @@ def process_clusters(
     # Predict clusters for all test points at once
     tp_features, _ = create_point_matrix(df_tp, unique_npcis, cluster_rf_param)
 
-    test_clusters = rf_model.predict(tp_features)
     # Organize test points by cluster
+    test_clusters = rf_model.predict(tp_features)
     df_tp["predicted_cluster"] = test_clusters
+
     cluster_groups = df_tp.groupby("predicted_cluster")
 
     # Initialize lists to store results
