@@ -16,7 +16,7 @@ def load_data(
     selected_campaigns: list[int],
     rf_param: RF_PARAM_5G,
     operator_choice: list[int],
-    frequencies: list[int],
+    freqs: list[int],
 ) -> pd.DataFrame:
     filename = "5G_data_2023.mat"
 
@@ -37,7 +37,6 @@ def load_data(
         df=df,
         operators=operator_choice,
         campaigns=selected_campaigns,
-        freqs=frequencies,
         include_columns=[
             "pci",
             "beam_index",
@@ -45,12 +44,19 @@ def load_data(
             "operator_id",
             rf_param.value,
         ],
+        freqs=freqs,
     )
 
     return df, random_seeds
 
 
-def run_experiment(inp_dataframe: pd.DataFrame, config: dict, random_seeds: np.ndarray):
+def run_experiment(
+    inp_dataframe: pd.DataFrame,
+    config: dict,
+    random_seeds: np.ndarray,
+    threadpool_size: int = 5,
+    arfcns: list[int] = None,
+):
     # filter data based on n best pcis and beams
 
     data = []
@@ -59,9 +65,11 @@ def run_experiment(inp_dataframe: pd.DataFrame, config: dict, random_seeds: np.n
     data_columns = ["error", "complexity", "runtime", "run", "pci_beam_config"]
 
     pci_beam_configs = [
-        [1, 1],
-        [2, None],
-        [20, None],  # Middle ground configs
+        [1, 1],  # Baseline
+        [2, 2],  # Lightweight
+        [15, 2],  # Balanced
+        [None, 2],  # Accurate
+        [None, None],  # Maximized
     ]
     for config_id, pb_conf in enumerate(pci_beam_configs):
         print("Running pci beam config", config_id)
@@ -77,7 +85,7 @@ def run_experiment(inp_dataframe: pd.DataFrame, config: dict, random_seeds: np.n
 
         unique_pcis = extract_unique_npcis(df["measurements_matrix"])
 
-        with ProcessPoolExecutor(max_workers=5) as executor:
+        with ProcessPoolExecutor(max_workers=threadpool_size) as executor:
             futures = [
                 (
                     executor.submit(
@@ -95,7 +103,7 @@ def run_experiment(inp_dataframe: pd.DataFrame, config: dict, random_seeds: np.n
                 for run in range(config["n_runs"])
             ]
             for future, run in futures:
-                result, runtime = future.result()
+                result, runtime, num_tps = future.result()
                 print(f"Run {run} done")
                 extra = np.array([runtime, run, config_id])
                 extra = np.tile(extra, (result.shape[0], 1))
@@ -124,6 +132,7 @@ def main():
         "bands": [78],
         "n_best_beams": 4,
         "selected_campaigns": list(range(1, 21)),
+        "threadpool_size": 1,
     }
 
     # find correct nr_arfcn's from band
@@ -140,13 +149,18 @@ def main():
         config["selected_campaigns"],
         config["rf_param"],
         operator_choice=config["operator_choice"],
-        frequencies=selected_arfcns,
+        freqs=selected_arfcns,
     )
 
     # time the experiment
     start_time = time.time()
 
-    results_df, results_df_means = run_experiment(df, config, random_seeds)
+    results_df, results_df_means = run_experiment(
+        df,
+        config,
+        random_seeds,
+        threadpool_size=config["threadpool_size"],
+    )
     total_time = time.time() - start_time
 
     print(

@@ -8,7 +8,8 @@ collected in Oslo and Rome on both 5G and NB-IoT networks.
 
 ## Getting started
 
-To set up the project, run:
+I used a venv to control packages and versions.
+To set up the project, run the setup script:
 
 ```bash
 # Allow execution privleges
@@ -18,53 +19,49 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
-Run the Jupyter notebook:
-
-```bash
-jupyter notebook
-``` 
-
-It can also be run using PyCharm or Data Spell IDEA by pressing the play button on the notebook.
+This next part is a bit stupid, but I might fix it. Some parts of the code read a project root
+path from a config file.
 
 ## About the project
 
-## Project code
+### Experiments
 
-### Notebook
+The `experiments` directory has some python scripts with the setups for different experiments
+I conducted in my thesis work. Due to many changes and little time, conventions changed a bit
+here, making the code a bit repetitive and messy. I might clean this up later.
 
-The code is run from a jupyter notebook found in `Main.ipynb`.
-Here can you also find notes and in-line documentation.
+**Storing results**
+
+I store the experiment results with the function `save_experiment_result` that stores the
+results in a directory inside `data/results/experiments` with a json file with config values
+as well as .csv files with the measurements.
 
 ### Scripts
 
-Other code is found in the `scripts/` directory for things like data loading and formatting.
-The data_loader is the module responsible for loading the matlab files and returning them
-as pandas dataframes.
+Most code is found in the `scripts/` directory for algorithm implementation, utils,
+data loading etc.
 
-#### `weighted_coverage.py`
+### Plotting
 
-This is the main logic and implementation of the wKNN algorithm.
+I used JupyterNotebooks to do most the plotting. These notebooks are in the `plotting/` directory
+and usually there is a corresponding plotting notebook to an experiment.
+I also have a file, `scripts/plotting.py`, that I initially used to make reusable plotting functions,
+but I quickly realized that the plots alle are quite different. So here is some unused code that I might
+clean up.
 
-#### `data_loader.py`
+### Other notebooks
 
-The matlab data files are loaded and transformed into pandas dataframes
-that are used throughout the project.
-
-#### `utils.py`
-
-Contains some utility functions to assist the main algorithm, e.g. haversine distance.
-
-#### `plotting.py`
-
-Methods to plot graphs.
+I have done a lot of experimentation and testing. Things like beam-matching and PCA. I thought
+that this could be nice to have [(Kjekt å ha)](https://www.youtube.com/watch?v=ZyMtjM6aLgY), so
+I put them inside `notebooks/`.
 
 ## Dataset
 
-### Pre-processed Matlab files
+### Dataset (NB-IoT)
 
-For now im using the NB-IoT dataset to get started, but eventually i will switch to the 5G dataset.
+At the start I used the NB-IoT dataset to get started, but eventually switched to the 5G dataset.
 
-Im using the `Campaign_data_NBIoT_1_2_3_4_5_6_interpolated_smoothed.mat` file which contains three datasets.
+The `Campaign_data_NBIoT_1_2_3_4_5_6_interpolated_smoothed.mat` file contains three datasets.
 This file is generated from the matlab code found [Here](https://github.com/lucadn/positioning-5G/tree/main), in the
 NB-IoT part of the code. This reads the raw `.xlsx` files, interpolates and cleans them. Then the data files are
 generated
@@ -76,7 +73,7 @@ as the `.mat` files found in the `data/` directory in this project.
 - dataSet_interp
 - dataSet_smooth
 
-### Dataset content
+#### Dataset content
 
 | Column   | Label                 | Content                                                                                                                           |
 |----------|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------|
@@ -97,6 +94,8 @@ as the `.mat` files found in the `data/` directory in this project.
 | 15       | logical_toa_op3       | A logical column vector that has 1s at positions of the matrix containing a NPCI with ToA data for operator 3                     |
 | 16       | campaign_ids          | A column vector that contains the list of campaign IDs that contributed to the data in the location                               |
 | -------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+
+---
 
 ## References
 

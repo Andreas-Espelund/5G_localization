@@ -116,6 +116,7 @@ def run_experiment(
     )
 
     results = []
+    results_mean = []
 
     for op in operator_choice:
         tmp = filter_dataframe(df=df.copy(), operators=[op])
@@ -153,27 +154,32 @@ def run_experiment(
                 ]
                 for future in futures:
                     data, runtime, num_tps = future.result()
-                    # extra = np.array([op, nr, runtime])
-                    # extra = np.tile(extra, (data.shape[0], 1))
-                    # res = np.concatenate([extra, data], axis=1)
-                    # results.extend(res)
+                    extra = np.array([op, nr, runtime, num_tps])
+                    extra = np.tile(extra, (data.shape[0], 1))
+                    res = np.concatenate([extra, data], axis=1)
+                    results.extend(res)
 
                     # dont store all TPs, only mean over runs
                     means = data.mean(axis=0)
-                    results.append([op, nr, runtime, num_tps, means[0], means[1]])
+                    results_mean.append([op, nr, runtime, num_tps, means[0], means[1]])
             print(f"\r✅ {nr} completed                                           ")
+
+    results_means_df = pd.DataFrame(
+        results_mean,
+        columns=["operator", "frequency", "runtime", "num_tps", "error", "complexity"],
+    )
 
     results_df = pd.DataFrame(
         results,
         columns=["operator", "frequency", "runtime", "num_tps", "error", "complexity"],
     )
 
-    return results_df
+    return results_df, results_means_df
 
 
 def main():
     # Parameters
-    n_runs = 20
+    n_runs = 10
     k_wknn = 2
     rf_param = RF_PARAM_5G.RSRQ
     clustering_rf_param = RF_PARAM_5G.RSRQ
@@ -187,7 +193,7 @@ def main():
     # vodafone
     df, random_seeds = load_data(selected_campaigns, rf_param, operator_choice)
 
-    results_df = run_experiment(
+    results_df, results_means_df = run_experiment(
         df,
         random_seeds,
         n_runs,
@@ -214,7 +220,10 @@ def main():
         "use_best_beams": use_best_beams,
     }
 
-    data = {"data": results_df}
+    data = {
+        "results": results_df,
+        "results_mean": results_means_df,
+    }
 
     save_experiment_result("frequency_experiment", config, data)
 
