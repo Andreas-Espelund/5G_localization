@@ -22,6 +22,17 @@ chmod +x setup.sh
 This next part is a bit stupid, but I might fix it. Some parts of the code read a project root
 path from a config file.
 
+1. get the absolute path of your repo-root-dir by doing `pwd`. The path should end with `<...>/5G_localization`.
+2. Replace the existing path in the file `config/config.json` with this value
+
+It should look like this:
+
+```json
+{
+  "project_root": "<your pwd>"
+}
+```
+
 ## About the project
 
 ### Experiments
@@ -56,6 +67,10 @@ that this could be nice to have [(Kjekt å ha)](https://www.youtube.com/watch?v=
 I put them inside `notebooks/`.
 
 ## Dataset
+
+### Dataset (5G)
+
+The 5G dataset I used was provided in a .mat file
 
 ### Dataset (NB-IoT)
 
