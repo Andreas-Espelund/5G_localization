@@ -1,0 +1,8 @@
+venv/
+data/results/
+.idea/
+.DS_Store
+
+# Tracked with github LFS
+#data/matlab/
+#data/dataframe_cache/

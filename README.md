@@ -70,7 +70,9 @@ I put them inside `notebooks/`.
 
 ### Dataset (5G)
 
-The 5G dataset I used was provided in a .mat file
+The 5G dataset I used was provided in a cleaned matlab file: `data/matlab/5G_data_2023.mat`. The first time you load
+this file,
+this file is parsed and cached as a Pandas Dataframe in a .h5 file: `data/dataframe_cache/5G_data_2023.h5`.
 
 ### Dataset (NB-IoT)
 
