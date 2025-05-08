@@ -140,11 +140,6 @@ def wknn_one(
     TP_est_location[:, 0] = lat_k_TP
     TP_est_location[:, 1] = long_k_TP
 
-    df_tp["estimated_lat"] = lat_k_TP
-    df_tp["estimated_long"] = long_k_TP
-
-    df_tp["error"] = errors
-
     return (
         TP_est_location,
         errors,
