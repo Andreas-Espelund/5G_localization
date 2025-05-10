@@ -1,10 +1,13 @@
+from time import perf_counter
+
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
+from tabulate import tabulate
 
 from scripts.matrix_operations import create_point_matrix, compute_weights
-from scripts.utils import RF_PARAM_5G, extract_unique_npcis
+from scripts.utils import RF_PARAM_5G, extract_unique_npcis, haversine_distance
 from scripts.weighted_coverage import wknn_one
 
 
@@ -33,6 +36,10 @@ class LocalizationModel:
         self.rps = None  # Reference points
         self.unique_pcis = None
 
+        # Timing metrics
+        self.training_time = None
+        self.inference_time = None
+
     def fit(self, x):
         """
         Fit the localization model with the RP data,
@@ -40,16 +47,24 @@ class LocalizationModel:
         :param x:
         :return:
         """
+        start = perf_counter()
+
+        # Set values
+        self.rps = x
+        self.unique_pcis = extract_unique_npcis(x["measurements_matrix"])
+
+        if self.n_clusters == 0:
+            # No clustering/classification
+            self.training_time = perf_counter() - start
+            return
+
+        # Train Kmeans and RandomForest
         df_features = x[["lat", "lng"]].values
         kmeans = KMeans(n_clusters=self.n_clusters, random_state=self.random_state)
         cluster_labels = kmeans.fit_predict(df_features)
         x["cluster"] = cluster_labels
 
-        self.rps = x
-        self.unique_pcis = extract_unique_npcis(x["measurements_matrix"])
-
         df_features, _ = create_point_matrix(self.rps, self.unique_pcis, self.rf_param)
-
         X = df_features
         y = self.rps["cluster"]
 
@@ -59,18 +74,54 @@ class LocalizationModel:
         rf_model.fit(X, y)
 
         self.rf_model = rf_model
+        self.training_time = perf_counter() - start
 
     def predict(self, x):
-        predicted_lat_lng = predict_lat_lng_wknn(
-            df_tp=x,
-            df_rp=self.rps,
-            unique_npcis=self.unique_pcis,
-            rf_param=self.rf_param,
-            wknn_k=self.wknn_k,
-            rf_model=self.rf_model,
+        start = perf_counter()
+        if self.n_clusters == 0:
+            # No clustering/classification: use all reference points for wKNN
+            predicted_lat_lng = predict_lat_lng_wknn_no_cluster(
+                df_tp=x,
+                df_rp=self.rps,
+                unique_npcis=self.unique_pcis,
+                rf_param=self.rf_param,
+                wknn_k=self.wknn_k,
+            )
+        else:
+            # Cluster-based prediction
+            predicted_lat_lng = predict_lat_lng_wknn(
+                df_tp=x,
+                df_rp=self.rps,
+                unique_npcis=self.unique_pcis,
+                rf_param=self.rf_param,
+                wknn_k=self.wknn_k,
+                rf_model=self.rf_model,
+            )
+        self.inference_time = perf_counter() - start
+        return predicted_lat_lng
+
+    def get_performance_stats(self, x, predicted_lat_lng, print_stats: bool = True):
+
+        error = haversine_distance(
+            x["lat"], x["lng"], predicted_lat_lng[:, 0], predicted_lat_lng[:, 1]
         )
 
-        return predicted_lat_lng
+        stats = {
+            "median_error": error.median(),
+            "mean_error": error.mean(),
+            "std_error": error.std(),
+            "min_error": error.min(),
+            "max_error": error.max(),
+            "training_time": self.training_time,
+            "inference_time": self.inference_time,
+        }
+
+        if print_stats:
+            print("==== Model Performance ====")
+            table = [[k, f"{v:.2f}"] for k, v in stats.items()]
+            print(tabulate(table, headers=["Stat", "Value"], tablefmt="github"))
+
+        return error, stats
 
 
 def predict_lat_lng_wknn(
@@ -102,17 +153,45 @@ def predict_lat_lng_wknn(
         if rp_cluster.empty:
             continue
 
-        # Create point matrices
-        m_rp_full, idx_rp_full = create_point_matrix(rp_cluster, unique_npcis, rf_param)
-        m_tp_full, idx_tp_full = create_point_matrix(tp_cluster, unique_npcis, rf_param)
-
-        # Compute weights and sorted indices
-        W, idx_sort = compute_weights(m_rp_full, idx_rp_full, m_tp_full, idx_tp_full)
-
-        # Run wKNN
-        est_locs, _ = wknn_one(tp_cluster, rp_cluster, idx_sort, W, k=wknn_k)
+        est_locs = process_points(
+            tp_cluster, rp_cluster, unique_npcis, rf_param, wknn_k
+        )
 
         # Assign estimated positions in the correct order
         predicted_positions[idx, :] = est_locs
 
     return predicted_positions
+
+
+def predict_lat_lng_wknn_no_cluster(
+    df_tp: pd.DataFrame,
+    df_rp: pd.DataFrame,
+    unique_npcis: np.array,
+    rf_param: RF_PARAM_5G,
+    wknn_k: int,
+):
+    """
+    Predict (lat, lng) for each test point using wKNN with all reference points (no clustering).
+    Returns: np.ndarray of shape (n_test_points, 2) with [lat, lng] in original order.
+    """
+    est_locs = process_points(df_tp, df_rp, unique_npcis, rf_param, wknn_k)
+    return est_locs
+
+
+def process_points(
+    tps: pd.DataFrame,
+    rps: pd.DataFrame,
+    unique_npcis: np.array,
+    rf_param: RF_PARAM_5G,
+    wknn_k: int,
+):
+    # Create point matrices
+    m_rp_full, idx_rp_full = create_point_matrix(rps, unique_npcis, rf_param)
+    m_tp_full, idx_tp_full = create_point_matrix(tps, unique_npcis, rf_param)
+
+    # Compute weights and sorted indices
+    W, idx_sort = compute_weights(m_rp_full, idx_rp_full, m_tp_full, idx_tp_full)
+
+    # Run wKNN
+    est_locs, _ = wknn_one(tps, rps, idx_sort, W, k=wknn_k)
+    return est_locs

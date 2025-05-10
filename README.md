@@ -17,6 +17,9 @@ chmod +x setup.sh
 
 # Run the setup script
 ./setup.sh
+
+# Replace with own path
+export PYTHONPATH="/Users/andreres/Documents/UIO/master/thesis/dev/5G_localization"
 ```
 
 This next part is a bit stupid, but I might fix it. Some parts of the code read a project root
