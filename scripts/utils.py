@@ -289,3 +289,13 @@ def create_df_index_map(df: pd.DataFrame) -> dict[int, int]:
 
 def apply_index_map(index: list, mapping: dict) -> list:
     return [mapping[i] for i in index if i in mapping]
+
+
+def get_arfcns_from_bands(bands: list[int]) -> list[int]:
+    band_config = get_config("band_map.json")
+    return [
+        int(arfcn)
+        for mapping in band_config.values()
+        for arfcn, band in mapping.items()
+        if band in bands
+    ]

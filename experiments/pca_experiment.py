@@ -1,33 +1,22 @@
 import os
 import time
 from concurrent.futures import ProcessPoolExecutor
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist
 from sklearn.decomposition import PCA
-from scripts.weighted_coverage import wknn_one
-from scripts.utils import dataset_tp_rp_split, extract_unique_npcis
-from scripts.weighted_coverage import create_point_matrix, compute_weights
-import pandas as pd
 
-from scripts.beamforming import (
-    get_best_beam,
-    get_beam_sidelobe_pcis,
-    filter_best_beams,
-)
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
-from scripts.data_writer import save_experiment_result
 from scripts.matrix_operations import create_point_matrix, compute_weights
 from scripts.utils import (
     NETWORK_TYPE,
     RF_PARAM_5G,
-    extract_unique_npcis,
-    dataset_tp_rp_split,
 )
-from scripts.weighted_coverage import wknn_one_tp_row, wknn_one
+from scripts.weighted_coverage import wknn_one
+
+
 def load_data(
     selected_campaigns: list[int], rf_param: RF_PARAM_5G, operator_choice: list[int]
 ):
@@ -81,7 +70,13 @@ def compute_weights_pca(m_rfp_pca, m_tp_pca):
     return W, idx_sort
 
 
-def pca_strategy(df_tp: pd.DataFrame, df_rp: pd.DataFrame, pcis: list[tuple], rf_param: RF_PARAM_5G, k: int = 2):
+def pca_strategy(
+    df_tp: pd.DataFrame,
+    df_rp: pd.DataFrame,
+    pcis: list[tuple],
+    rf_param: RF_PARAM_5G,
+    k: int = 2,
+):
     # 1. Create the full point matrix with all beam features
     m_rp_full, idx_rp_full = create_point_matrix(df_rp, pcis, rf_param)
     m_tp_full, idx_tp_full = create_point_matrix(df_tp, pcis, rf_param)
@@ -100,11 +95,13 @@ def pca_strategy(df_tp: pd.DataFrame, df_rp: pd.DataFrame, pcis: list[tuple], rf
 
     _, errors_control = wknn_one(df_tp, df_rp, idx_sort, W, k=2)
 
-    return errors.mean(), int(m_rp_pca.shape[0] * m_rp_pca.shape[1]), errors_control.mean(), int(
-        m_rp_full.shape[0] * m_rp_full.shape[1])
+    return (
+        errors.mean(),
+        int(m_rp_pca.shape[0] * m_rp_pca.shape[1]),
+        errors_control.mean(),
+        int(m_rp_full.shape[0] * m_rp_full.shape[1]),
+    )
 
-
-def run_experiment(df: pd.DataFrame, rf_param: RF_PARAM_5G):
 
 def main():
     n_runs = 10
@@ -117,8 +114,5 @@ def main():
 
     start_time = time.time()
 
-
     with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
-        executor.submit(
-            pca_strategy,
-            df, df, rf_param, k_wknn)
+        executor.submit(pca_strategy, df, df, rf_param, k_wknn)
