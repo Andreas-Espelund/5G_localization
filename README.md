@@ -36,6 +36,11 @@ It should look like this:
 }
 ```
 
+### Quick start guide
+
+As a first step I would recommed checking out the notebook `notebooks/get_started.ipynb` which gives
+a quick practical intro to how to use the model and run experiments.
+
 ## About the project
 
 ### Experiments
