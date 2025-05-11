@@ -18,7 +18,6 @@ class RF_PARAM_5G(Enum):
     SINR = "sinr"
     RSRP = "rsrp"
     RSRQ = "rsrq"
-    DUMMY = "dummy"
 
 
 class NETWORK_TYPE(Enum):

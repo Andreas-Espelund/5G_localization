@@ -30,7 +30,7 @@ def filter_dataframe(
         return inner_df
 
     if campaigns is not None:
-        df = df[df["campaign_id"].isin(campaigns)]
+        df = df[df["campaign_id"].isin(campaigns)].copy()
 
     # Apply the filter function to each DataFrame in the 'measurement_matrix' column
     df["measurements_matrix"] = df["measurements_matrix"].apply(
@@ -41,6 +41,6 @@ def filter_dataframe(
         df["measurements_matrix"].apply(
             lambda x: not (isinstance(x, pd.DataFrame) and x.empty)
         )
-    ]
+    ].copy()
 
     return df
