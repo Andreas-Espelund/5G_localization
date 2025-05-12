@@ -20,77 +20,6 @@ from scripts.utils import (
 def wknn(
     df_tp: pd.DataFrame,
     df_rp: pd.DataFrame,
-    idx_sort: np.array,
-    W: np.array,
-    k_max: int,
-) -> (np.array, dict):
-    """
-    :param df_tp: Dataframe of reference points
-    :param df_rp: Dataframe of test points
-    :param idx_sort: sorted index matrix by weights
-    :param W: the weight matrix for the test/reference points
-    :param k_max: Max number of neighbors for wKNN
-    :return: Estimated locations and average error for each k value
-    """
-    num_tps = df_tp.shape[0]
-    k_values = range(1, k_max + 1)
-    TP_est_location = [None] * len(k_values)
-    k_avg_error = []
-
-    # Extract real positions of test points
-    real_lat = df_tp["lat"].values
-    real_long = df_tp["lng"].values
-    real_position = np.vstack((real_lat, real_long)).T
-
-    # Loop over each k value
-    for i, this_k in enumerate(k_values):
-        # Select the k-nearest reference points
-        RFP_selected_idx = idx_sort[:, :this_k]
-
-        df_tp["nearest"] = RFP_selected_idx
-
-        # Extract coordinates of the selected reference points
-        lat_k_RFP_matrix = df_rp.iloc[RFP_selected_idx.flatten()]["lat"].values.reshape(
-            RFP_selected_idx.shape
-        )
-        long_k_RFP_matrix = df_rp.iloc[RFP_selected_idx.flatten()][
-            "lng"
-        ].values.reshape(RFP_selected_idx.shape)
-
-        # Compute weighted sums of coordinates
-        sum_lat = np.sum(lat_k_RFP_matrix * W[:, :this_k], axis=1)
-        sum_long = np.sum(long_k_RFP_matrix * W[:, :this_k], axis=1)
-
-        # Compute estimated coordinates of test points
-        sum_weights = np.sum(W[:, :this_k], axis=1)
-        try:
-            lat_k_TP = np.where(sum_weights != 0, sum_lat / sum_weights, np.nan)
-            long_k_TP = np.where(sum_weights != 0, sum_long / sum_weights, np.nan)
-        except ZeroDivisionError:
-            lat_k_TP = np.nan
-            long_k_TP = np.nan
-            print(f"zero devision error for {this_k}")
-
-        # Compute errors using Haversine formula
-        km_pow = haversine_distance(
-            real_position[:, 0], real_position[:, 1], lat_k_TP, long_k_TP
-        )
-        average_error_pow = np.mean(km_pow)
-
-        # k_avg_error[this_k] = average_error_pow
-        k_avg_error.append(average_error_pow)
-        # Store estimated locations
-        TP_est_location_k = np.zeros((num_tps, 2))
-        TP_est_location_k[:, 0] = lat_k_TP
-        TP_est_location_k[:, 1] = long_k_TP
-        TP_est_location[i] = TP_est_location_k
-
-    return TP_est_location, np.array(k_avg_error)
-
-
-def wknn_one(
-    df_tp: pd.DataFrame,
-    df_rp: pd.DataFrame,
     idx_sort: np.ndarray[int],
     W: np.ndarray[np.float64],
     k: int,
@@ -252,7 +181,7 @@ def process_test_points(
     # If we dont use PCA, just calcualte the errors and return
     if not use_pca:
         W, idx_sort = compute_weights(m_rp_full, idx_rp_full, m_tp_full, idx_tp_full)
-        _, errors = wknn_one(df_tp, df_rp, idx_sort, W, k=k)
+        _, errors = wknn(df_tp, df_rp, idx_sort, W, k=k)
         complexity = np.repeat(m_rp_full.shape[0] * m_tp_full.shape[1], n_points)
 
         return np.array([errors, complexity]).T
@@ -265,7 +194,7 @@ def process_test_points(
 
     W_pca, idx_sort_pca = compute_weights_pca(m_rp_pca, m_tp_pca)
 
-    _, errors = wknn_one(df_tp, df_rp, idx_sort_pca, W_pca, k)
+    _, errors = wknn(df_tp, df_rp, idx_sort_pca, W_pca, k)
 
     complexity = np.repeat(m_rp_pca.shape[0] * m_tp_pca.shape[1], n_points)
 

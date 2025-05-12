@@ -8,7 +8,7 @@ from scripts.utils import NETWORK_TYPE, RF_PARAM_5G, get_config
 filename = "5G_data_2023.mat"
 
 # Series of random seeds for reproducability
-random_seeds = np.loadtxt("../data/random_seeds.csv", dtype=int)
+random_seeds = np.loadtxt("../config/random_seeds.csv", dtype=int)
 
 # load the dataframe from saved file or 'raw' matlab file
 df = load_dataframe(filename, NETWORK_TYPE._5G)

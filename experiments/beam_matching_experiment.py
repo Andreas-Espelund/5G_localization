@@ -22,7 +22,7 @@ from scripts.utils import (
     extract_unique_npcis,
     dataset_tp_rp_split,
 )
-from scripts.weighted_coverage import wknn_one_tp_row, wknn_one
+from scripts.weighted_coverage import wknn_one_tp_row, wknn
 
 
 def load_data(
@@ -32,7 +32,7 @@ def load_data(
     filename = "5G_data_2023.mat"
 
     # Series of random seeds for reproducability
-    random_seeds = np.loadtxt("../data/random_seeds.csv", dtype=int)
+    random_seeds = np.loadtxt("../config/random_seeds.csv", dtype=int)
 
     # load the dataframe from saved file or 'raw' matlab file
     df = load_dataframe(filename, NETWORK_TYPE._5G)
@@ -85,7 +85,7 @@ def beam_matching_strategy(
     W_control, idx_sort_control = compute_weights(
         m_rp_control, idx_rp_control, m_tp_control, idx_tp_control
     )
-    _, errors_control = wknn_one(df_tp, df_rp, idx_sort_control, W_control, k=2)
+    _, errors_control = wknn(df_tp, df_rp, idx_sort_control, W_control, k=2)
     complexity_control = m_rp_control.shape[0] * m_rp_control.shape[1]
 
     # Pre-compute reference point matrices by beam

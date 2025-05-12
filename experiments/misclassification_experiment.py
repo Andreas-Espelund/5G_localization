@@ -4,9 +4,9 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 
+from scripts.clustering import train_random_forest
 from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
-from scripts.data_processing import train_random_forest
 from scripts.data_writer import save_experiment_result
 from scripts.utils import (
     NETWORK_TYPE,
@@ -23,7 +23,7 @@ def load_data(
     filename = "5G_data_2023.mat"
 
     # Series of random seeds for reproducability
-    random_seeds = np.loadtxt("../data/random_seeds.csv", dtype=int)
+    random_seeds = np.loadtxt("../config/random_seeds.csv", dtype=int)
 
     # load the dataframe from saved file or 'raw' matlab file
     df = load_dataframe(filename, NETWORK_TYPE._5G)

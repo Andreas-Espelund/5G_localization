@@ -8,7 +8,7 @@ from tabulate import tabulate
 
 from scripts.matrix_operations import create_point_matrix, compute_weights
 from scripts.utils import RF_PARAM_5G, extract_unique_npcis, haversine_distance
-from scripts.weighted_coverage import wknn_one
+from scripts.weighted_coverage import wknn
 
 
 class LocalizationModel:
@@ -193,5 +193,5 @@ def process_points(
     W, idx_sort = compute_weights(m_rp_full, idx_rp_full, m_tp_full, idx_tp_full)
 
     # Run wKNN
-    est_locs, _ = wknn_one(tps, rps, idx_sort, W, k=wknn_k)
+    est_locs, _ = wknn(tps, rps, idx_sort, W, k=wknn_k)
     return est_locs

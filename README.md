@@ -36,6 +36,10 @@ It should look like this:
 }
 ```
 
+If you are inside the `experiments` folder to run experiments, you might get a module not found error.
+Then you need to run this script `export PYTHONPATH="/Users/andreres/Documents/UIO/master/thesis/dev/5G_localization"`,
+with your own root path. This should also have been fixed more permanently.
+
 ### Quick start guide
 
 As a first step I would recommed checking out the notebook `notebooks/get_started.ipynb` which gives

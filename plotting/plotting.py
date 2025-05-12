@@ -5,7 +5,29 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from scripts.utils import cluster_color_mapping
+cluster_color_mapping = {
+    0: "orange",
+    1: "red",
+    2: "green",
+    3: "blue",
+    4: "yellow",
+    5: "purple",
+    6: "brown",
+    7: "pink",
+    8: "teal",
+    9: "gray",
+    10: "cyan",
+    11: "magenta",
+    12: "lime",
+    13: "navy",
+    14: "maroon",
+    15: "olive",
+    16: "silver",
+    17: "gold",
+    18: "lavender",
+    19: "wheat",
+    20: "turquoise",
+}
 
 plt.rcParams.update(
     {

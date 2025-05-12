@@ -14,7 +14,7 @@ from scripts.utils import (
     NETWORK_TYPE,
     RF_PARAM_5G,
 )
-from scripts.weighted_coverage import wknn_one
+from scripts.weighted_coverage import wknn
 
 
 def load_data(
@@ -24,7 +24,7 @@ def load_data(
     filename = "5G_data_2023.mat"
 
     # Series of random seeds for reproducability
-    random_seeds = np.loadtxt("../data/random_seeds.csv", dtype=int)
+    random_seeds = np.loadtxt("../config/random_seeds.csv", dtype=int)
 
     # load the dataframe from saved file or 'raw' matlab file
     df = load_dataframe(filename, NETWORK_TYPE._5G)
@@ -91,9 +91,9 @@ def pca_strategy(
 
     W, idx_sort = compute_weights(m_rp_full, idx_rp_full, m_tp_full, idx_tp_full)
 
-    _, errors = wknn_one(df_tp, df_rp, idx_sort_pca, W_pca, k)
+    _, errors = wknn(df_tp, df_rp, idx_sort_pca, W_pca, k)
 
-    _, errors_control = wknn_one(df_tp, df_rp, idx_sort, W, k=2)
+    _, errors_control = wknn(df_tp, df_rp, idx_sort, W, k=2)
 
     return (
         errors.mean(),
