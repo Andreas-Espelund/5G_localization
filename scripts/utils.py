@@ -58,6 +58,13 @@ cluster_color_mapping = {
 
 
 def get_config(filename: str, key: str = None) -> dict:
+    """
+    Get configuration parameters from a JSON file.
+
+    :param filename: Filename of the JSON file.
+    :param key: Key of the json file to extract configuration parameters from.
+    :return: Config map
+    """
     config_path = get_abs_filepath(os.path.join("config", filename))
     with open(config_path, "r") as f:
         config = json.load(f)
@@ -67,6 +74,12 @@ def get_config(filename: str, key: str = None) -> dict:
 
 
 def get_abs_filepath(path: str) -> str:
+    """
+    Get the absolute path of a file, from project root.
+
+    :param path: Path
+    :return: Absolute path
+    """
     config_path = os.path.join(os.path.dirname(__file__), "../config/config.json")
     with open(config_path, "r") as f:
         config = json.load(f)

@@ -16,13 +16,14 @@ from scripts.data_filter import filter_dataframe
 from scripts.data_loader import load_dataframe
 from scripts.data_writer import save_experiment_result
 from scripts.matrix_operations import create_point_matrix, compute_weights
+from scripts.single import wknn_one_tp_row
 from scripts.utils import (
     NETWORK_TYPE,
     RF_PARAM_5G,
     extract_unique_npcis,
     dataset_tp_rp_split,
 )
-from scripts.weighted_coverage import wknn_one_tp_row, wknn
+from scripts.weighted_coverage import wknn
 
 
 def load_data(

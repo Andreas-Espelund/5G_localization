@@ -74,7 +74,7 @@ def run_experiment(
         df=df_rp,
         unique_npcis=pcis,
         rf_param=rf_param,
-        random_seed=random_seed * 42,
+        random_state=random_seed * 42,
         n_estimators=100,
     )
 

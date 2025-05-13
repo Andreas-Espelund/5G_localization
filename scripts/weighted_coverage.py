@@ -25,6 +25,8 @@ def wknn(
     k: int,
 ) -> (np.array, float):
     """
+    The WkNN algorithm
+
     :param df_tp: Dataframe of reference points
     :param df_rp: Dataframe of test points
     :param idx_sort: sorted index matrix by weights
@@ -85,6 +87,19 @@ def run_weighted_coverage(
     n_clusters: int,
     use_pca: bool = False,
 ) -> (np.array, np.array, int, float):
+    """
+    Experimental method for running weighted coverage algorithm in experiments.
+
+    :param df: Dataframe of reference points
+    :param rf_param: RF parameter for WkNN
+    :param cluster_rf_param: Param for clustering?
+    :param k_max: K value for wKNN
+    :param unique_npcis: Set of unique npcis (features)
+    :param random_seed: Random seed for reproducibility
+    :param n_clusters: Number of clusters for kmeans
+    :param use_pca: Should use PCA?
+    :return: Runtime, complexity and error measurements
+    """
 
     tmp = df.sample(frac=1, random_state=random_seed).reset_index(drop=True)
 
@@ -136,6 +151,21 @@ def process_clusters(
     rf_model,
     use_pca: bool,
 ):
+    """
+    Predict cluster membership and process points grouped on
+    cluster.
+
+    :param rf_model: Random forest model
+    :param cluster_rf_param: Param to use for cluster prediction in Random Forest
+    :param df_tp: Test points dataframe
+    :param df_rp: Reference points dataframe
+    :param pcis: Set of unique npcis (features)
+    :param rf_param: RF parameter for WkNN
+    :param k: K value for wKNN
+    :param use_pca: Should use PCA?
+    :param n_components: Number of components for PCA
+    :return:
+    """
     # Predict clusters for all test points at once
     tp_features, _ = create_point_matrix(df_tp, unique_npcis, cluster_rf_param)
 
@@ -171,6 +201,17 @@ def process_test_points(
     use_pca: bool = False,
     n_components: float = 0.95,
 ):
+    """
+    Process a batch of test points.
+    :param df_tp: Test points dataframe
+    :param df_rp: Reference points dataframe
+    :param pcis: Set of unique npcis (features)
+    :param rf_param: RF parameter for WkNN
+    :param k: K value for wKNN
+    :param use_pca: Should use PCA?
+    :param n_components: Number of components for PCA
+    :return: Results
+    """
 
     n_points = df_tp.shape[0]
 
@@ -199,59 +240,3 @@ def process_test_points(
     complexity = np.repeat(m_rp_pca.shape[0] * m_tp_pca.shape[1], n_points)
 
     return np.array([errors, complexity]).T
-
-
-def wknn_one_tp_row(
-    df_tp: pd.DataFrame,
-    df_rp: pd.DataFrame,
-    idx_sort: np.ndarray[int],
-    W: np.ndarray[np.float64],
-    k: int,
-) -> (np.array, float):
-    """
-    :param df_tp: Dataframe of reference points - ASSUMED TO HAVE ONE ROW
-    :param df_rp: Dataframe of test points
-    :param idx_sort: sorted index matrix by weights
-    :param W: the weight matrix for the test/reference points
-    :param k: Number of neighbors for wKNN
-    :return: Estimated locations and average error for the given k value
-    """
-    # Extract real positions of the test point (assuming only one row in df_tp)
-    real_lat = df_tp["lat"].iloc[0]
-    real_long = df_tp["lng"].iloc[0]
-    real_position = np.array(
-        [[real_lat, real_long]]
-    )  # Still needs to be 2D for haversine_distance
-
-    # Select the k-nearest reference points.
-    # Since df_tp has one row, we only need the first row of idx_sort and W
-    RFP_selected_idx = idx_sort[0, :k]
-    W_row = W[0, :k]
-
-    # Extract coordinates of the selected reference points
-    lat_k_RFP_matrix = df_rp.iloc[RFP_selected_idx]["lat"].values
-    long_k_RFP_matrix = df_rp.iloc[RFP_selected_idx]["lng"].values
-
-    # Compute weighted sums of coordinates
-    sum_lat = np.sum(lat_k_RFP_matrix * W_row)
-    sum_long = np.sum(long_k_RFP_matrix * W_row)
-
-    # Compute estimated coordinates of test points
-    sum_weights = np.sum(W_row)
-    lat_k_TP = np.where(sum_weights != 0, sum_lat / sum_weights, np.nan)
-    long_k_TP = np.where(sum_weights != 0, sum_long / sum_weights, np.nan)
-
-    # Compute errors using Haversine formula
-    errors = haversine_distance(
-        real_position[0, 0], real_position[0, 1], lat_k_TP, long_k_TP
-    )
-
-    # Store estimated locations
-    TP_est_location = np.zeros((1, 2))  # Still 2D array for consistency in return type
-    TP_est_location[0, 0] = lat_k_TP
-    TP_est_location[0, 1] = long_k_TP
-
-    return (
-        TP_est_location,
-        errors,
-    )

@@ -13,6 +13,18 @@ def filter_dataframe(
         str
     ] = None,  # New parameter to specify which columns to include
 ) -> pd.DataFrame:
+    """
+    Filter the dataframe according to the given criteria.
+
+    :param df: Original dataframe.
+    :param operators: Operators to include
+    :param campaigns: Campaigns to include
+    :param beams: Beam indecies to include, not used, remove
+    :param freqs: Frequencies to include
+    :param include_columns: Columns to include
+    :return: Filtered dataframe
+    """
+
     # Function to filter an inner DataFrame based on the given criteria
     def filter_inner_df(inner_df):
         if operators is not None:

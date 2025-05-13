@@ -137,3 +137,59 @@ def wknn_single(
 
     # Return estimated location and error
     return np.array([lat_est, long_est]), error
+
+
+def wknn_one_tp_row(
+    df_tp: pd.DataFrame,
+    df_rp: pd.DataFrame,
+    idx_sort: np.ndarray[int],
+    W: np.ndarray[np.float64],
+    k: int,
+) -> (np.array, float):
+    """
+    :param df_tp: Dataframe of reference points - ASSUMED TO HAVE ONE ROW
+    :param df_rp: Dataframe of test points
+    :param idx_sort: sorted index matrix by weights
+    :param W: the weight matrix for the test/reference points
+    :param k: Number of neighbors for wKNN
+    :return: Estimated locations and average error for the given k value
+    """
+    # Extract real positions of the test point (assuming only one row in df_tp)
+    real_lat = df_tp["lat"].iloc[0]
+    real_long = df_tp["lng"].iloc[0]
+    real_position = np.array(
+        [[real_lat, real_long]]
+    )  # Still needs to be 2D for haversine_distance
+
+    # Select the k-nearest reference points.
+    # Since df_tp has one row, we only need the first row of idx_sort and W
+    RFP_selected_idx = idx_sort[0, :k]
+    W_row = W[0, :k]
+
+    # Extract coordinates of the selected reference points
+    lat_k_RFP_matrix = df_rp.iloc[RFP_selected_idx]["lat"].values
+    long_k_RFP_matrix = df_rp.iloc[RFP_selected_idx]["lng"].values
+
+    # Compute weighted sums of coordinates
+    sum_lat = np.sum(lat_k_RFP_matrix * W_row)
+    sum_long = np.sum(long_k_RFP_matrix * W_row)
+
+    # Compute estimated coordinates of test points
+    sum_weights = np.sum(W_row)
+    lat_k_TP = np.where(sum_weights != 0, sum_lat / sum_weights, np.nan)
+    long_k_TP = np.where(sum_weights != 0, sum_long / sum_weights, np.nan)
+
+    # Compute errors using Haversine formula
+    errors = haversine_distance(
+        real_position[0, 0], real_position[0, 1], lat_k_TP, long_k_TP
+    )
+
+    # Store estimated locations
+    TP_est_location = np.zeros((1, 2))  # Still 2D array for consistency in return type
+    TP_est_location[0, 0] = lat_k_TP
+    TP_est_location[0, 1] = long_k_TP
+
+    return (
+        TP_est_location,
+        errors,
+    )

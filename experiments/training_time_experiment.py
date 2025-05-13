@@ -63,7 +63,7 @@ print(f"Loaded df of size {df.shape}")
 
 
 from scripts.utils import dataset_tp_rp_split
-from scripts.localization_model import LocalizationModel
+from model.localization_model import LocalizationModel
 
 all_stats = {}
 

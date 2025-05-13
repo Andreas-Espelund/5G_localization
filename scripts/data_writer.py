@@ -27,7 +27,13 @@ def create_unique_filename(title: str) -> str:
 
 
 def save_experiment_result(title: str, config: dict, results: dict):
-
+    """
+    Saves experiment result to the data/results/experiments/{title} path
+    :param title: folder name
+    :param config: metadata to write to json
+    :param results: map of dataframes
+    :return: None
+    """
     dir = create_unique_filename(title)
 
     # store config in json
